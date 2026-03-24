@@ -280,59 +280,22 @@ Every approval, rejection, reaffirmation, and withdrawal MUST record the acting 
 
 ## 10. Error Surface
 
-Service principals (LLMs, integrations) are first-class consumers. They create content, propose links, push hashes, and read state. When something fails, the error must give the caller enough to self-correct without human intervention.
+Service principals (LLMs, integrations) are first-class consumers. When something fails, the error must give the caller enough to self-correct without human intervention.
 
 ### 10.1 Error Structure
 
-Every error carries:
-
-| Field | Required | Description |
-|---|---|---|
-| `code` | yes | Stable string code — the only field callers should match on |
-| `entity` | yes | What kind of thing failed (document, section, link, thread) |
-| `id` | when applicable | Which specific entity |
-| `message` | yes | Human-readable explanation — full sentence, entity + action + cause |
-| `fields` | when applicable | Structured context (e.g., expected vs actual hash) |
-| `remediation` | yes | What to do next — specific command or action to resolve |
+Every error carries: `code` (stable string — the only field callers match on), `entity` + `id` (what failed), `message` (human-readable, full sentence), `fields` (structured context, e.g., expected vs actual hash), `remediation` (what to do next — specific command or action).
 
 ### 10.2 Error Codes
 
-| Code | When | Remediation pattern |
-|---|---|---|
-| `NOT_FOUND` | Entity doesn't exist | Check ref, list available entities |
-| `STALE_CONTEXT` | Content changed between review-load and approve-submit | Refresh content, re-review |
-| `UNAUTHORIZED` | Service principal attempted a trust action | Requires human — route to human principal |
-| `CONFLICT` | Invalid state transition (e.g., approve an archived link) | Check current state |
-| `INVALID_REF` | Malformed `@ref` or `@ext:` format | Fix ref format |
-| `INVALID_METADATA` | Metadata JSON doesn't parse or missing required fields | Fix JSON |
-| `DUPLICATE` | Entity already exists (e.g., `@ext:notion/page-abc` already registered) | Use existing entity or choose different ID |
-| `CONTENT_TYPE_MISMATCH` | Wrong operation for content type (e.g., push hash on native, set body on external) | Use the correct operation for this content type |
-| `VALIDATION` | Input doesn't meet requirements (missing field, bad format) | Fix the specific field cited in `fields` |
+`NOT_FOUND`, `STALE_CONTEXT`, `UNAUTHORIZED`, `CONFLICT`, `INVALID_REF`, `INVALID_METADATA`, `DUPLICATE`, `CONTENT_TYPE_MISMATCH`, `VALIDATION`. Each includes a remediation hint specific to the failure.
 
 ### 10.3 Output Modes
 
-All CLI commands support two output modes:
+- **Human (default)** — `message` to stderr, structured output to stdout
+- **Machine (`--json`)** — full error/success structure as JSON to stdout
 
-- **Human (default)** — `message` printed to stderr, structured output to stdout
-- **Machine (`--json`)** — full error structure as JSON to stdout
-
-Machine mode is the primary interface for service principals. Human mode is sugar.
-
-### 10.4 Success Responses
-
-Success responses follow the same principle — structured, predictable, sufficient for the next action:
-
-```json
-{
-  "ok": true,
-  "entity": "section",
-  "id": "@s3",
-  "action": "created",
-  "fields": { "doc_id": "D1", "hash": "sha256:abc...", "version": 1 }
-}
-```
-
-The caller should never need to parse human-readable output or run a follow-up query to learn the ID of what it just created.
+Success responses are structured: `{"ok": true, "entity": "section", "id": "@s3", "action": "created", "fields": {...}}`. The caller never needs to parse human-readable output or run a follow-up query.
 
 ---
 
