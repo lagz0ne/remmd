@@ -4,3 +4,4 @@
 {"run":4,"commit":"ea0ce78","metrics":{"words":2588,"lines":410,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"merge Graph subsections","timestamp":1774323349}
 {"run":5,"commit":"9024cba","metrics":{"words":2491,"lines":392,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress external content","timestamp":1774323377}
 {"run":6,"commit":"60b63b4","metrics":{"words":2423,"lines":380,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress link states + stale guard","timestamp":1774323403}
+{"run":7,"commit":"c4b4b30","metrics":{"words":2350,"lines":365,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress tag subscriptions","timestamp":1774323428}

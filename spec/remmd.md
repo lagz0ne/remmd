@@ -240,24 +240,9 @@ A service principal MAY import multiple documents at once and propose links acro
 
 ## 8. Tag Subscriptions
 
-Tags classify sections for filtering and discovery. Subscriptions notify owners when new matching content appears.
+Sections MAY carry tags for classification and discovery. Tags follow the same versioning as content.
 
-### 8.1 Tags
-
-A section MAY carry tags for classification and discovery.
-
-- Tags follow the same versioning as content — every tag mutation is recorded
-
-### 8.2 Subscriptions
-
-A subscription is a standing notification request: "tell me when content with this tag appears."
-
-- `remmd subscribe @section --tag "payment"`
-- When new content with a matching tag is activated, the subscriber is notified
-- Notification includes: new document, matched tag, subscriber's section for context
-- Subscriber decides: create a link (enters normal bilateral flow) or dismiss
-- Subscriptions fire on: new document activation with matching tag, or tag added to existing content
-- Subscriptions evaluate only against active content and active tags
+A subscription is a standing notification request: "tell me when content with this tag appears." Fires on: new content with matching tag, or tag added to existing content. Notification includes the new document, matched tag, and subscriber's section for context.
 
 Subscriptions create notifications, NOT links. The subscriber decides manually whether to propose a link.
 
