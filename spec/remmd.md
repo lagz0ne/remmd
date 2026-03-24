@@ -5,17 +5,7 @@
 
 ---
 
-## 1. Purpose
-
-remmd is the system of record for **human-approved agreement** between independently maintained document sections.
-
-Documents are not derived from each other. A requirement, a design, an implementation, a test plan — each is an independent claim authored by a different person for a different purpose. They are supposed to *match*. Nobody checks whether they do.
-
-remmd lets people say "these things should match" and enforces that both sides agree. When content changes, the system walks the graph, surfaces what's impacted, and routes review. Only humans create trust.
-
----
-
-## 2. Design Axioms
+## 1. Design Axioms
 
 1. **Don't derive, match.** Documents are independent claims. There is no hierarchy between them. Agreement is bilateral.
 
@@ -52,7 +42,7 @@ A section is the minimum accountable unit. Every heading, block, or structural e
 - Sections MAY be nested (parent-child)
 - Sections are hierarchical and non-overlapping within a document
 - No manual marking required — every section is linkable by default
-- A section MAY carry tags for classification, policy, and discovery
+- A section MAY carry tags for classification and discovery
 
 ### 3.3 Versioning
 
@@ -71,6 +61,58 @@ Deleting a section is a content operation that carries metadata.
 - Deletion impacts all links containing the section
 - Counterparties review the deletion via their link threads
 - A link survives with remaining sections, or breaks if none are left
+
+### 3.5 Content Types
+
+Every section has four primitives regardless of where the content lives:
+
+| Primitive | Required | Description |
+|---|---|---|
+| `@ref` | yes | Stable identity within remmd |
+| `hash` | yes | Content hash for change detection |
+| `metadata` | yes | JSON — provenance, location, system-specific context |
+| `body` | native only | The actual content (e.g., markdown) |
+
+Links, threads, approvals, graph walks, and blast radius operate identically across all content types. Content type affects storage, detection, and review UX — never the trust mechanism.
+
+#### 3.5.1 Native Content
+
+Content stored and managed by remmd. This is the default.
+
+- Body is stored in remmd (markdown by default)
+- Hash is derived automatically (see `ref-content-hashing`)
+- `@refs` are system-assigned: `@s1`, `@s2`, etc.
+- Metadata: `{ "system": "native", "format": "markdown" }`
+- Full detection, diff, and rendering built-in
+
+#### 3.5.2 External Content
+
+Content that lives in an external system. remmd stores only the identity, hash, and metadata — not the body.
+
+- Registered with a system namespace and external identifier
+- `@refs` are namespaced: `@ext:<system>/<external_id>` (e.g., `@ext:notion/page-abc`, `@ext:figma/frame-123`)
+- Hash is provided by the source — opaque to remmd
+- Metadata is a flexible JSON object describing provenance, location, and system-specific context
+
+Metadata examples:
+
+```json
+{ "system": "notion", "page_id": "abc123", "workspace": "acme" }
+{ "system": "git", "repo": "github.com/acme/api", "path": "src/handler.go", "ref": "main" }
+{ "system": "manual", "description": "Q1 external audit report" }
+```
+
+**Capabilities:**
+
+| Capability | How |
+|---|---|
+| Detection | Manual or push (CLI/API) |
+| Diff | Optional — text diff provided on hash push |
+| Rendering | Reviewer verifies at external source |
+
+**Granularity:** By default, one external source = one section. An external system MAY register multiple sections with their own IDs and hashes under a single document to express finer structure.
+
+**Review basis:** When approving a link involving external content, the reviewer attests "I verified this externally." The approval record captures `basis: external-verify` to distinguish from native content where remmd guarantees visibility. Future: verification/reverification mechanisms may strengthen this.
 
 ---
 
@@ -233,69 +275,44 @@ This is shown at edit time, not as an afterthought.
 
 ---
 
-## 7. Source Adapters
+## 7. Hash Updates & External Changes
 
-Any external system becomes a node type via a source adapter. The mechanism (links, threads, approvals, graph walks) stays identical.
+Content hashes reach remmd through two channels:
 
-### 7.1 Adapter Contract
-
-An adapter MUST implement:
-
-| Method | Input | Output |
+| Channel | How | When |
 |---|---|---|
-| `emit_sections` | source reference | `[{id, content, hash}]` |
-| `on_change` | source reference | `[{section_id, old_hash, new_hash}]` |
-| `render_preview` | section reference | displayable content for review UI |
+| Built-in | remmd computes hash on edit | Native content |
+| Push | External system calls CLI/API with new hash | External content |
 
-That's it. Links, threads, approvals, graph walks, ripple, and blast radius are all inherited from core.
+Push is the lightest integration — the external system just sends `{ref, new_hash, ?diff}`. No special infrastructure required.
 
-### 7.2 Code Adapter
+### 7.1 External Updates
 
-The git/code adapter watches file paths and emits sections per file, function, or code block.
+When an external source changes:
 
-- Content hash is per code path (file hash, function hash) — NOT the git commit hash
-- A commit touching `src/refund/handler.ts` changes that section's hash → graph ripple
-- Code sections are reviewable in link threads with syntax-highlighted diffs
+- New hash is recorded, creating a new version of the section
+- Graph walks and thread updates follow the standard mechanism
+- No special path for external vs internal changes — the graph doesn't care how the hash arrived
 
-### 7.3 Built-in Adapters (v1)
+### 7.2 Bulk Import
 
-| Adapter | Section granularity | Hash source |
-|---|---|---|
-| Native (remmd docs) | headings/blocks | content hash |
-| Git/code | file or function path | file/function content hash |
-| Jira | ticket fields (description, acceptance criteria, subtasks) | field content hash |
-
-Additional adapters (Confluence, Figma, Notion, etc.) follow the same contract.
-
-### 7.4 Bulk Import
-
-An adapter MAY import multiple documents at once. An AI/service principal MAY propose links across the imported content and existing graph in the same operation.
+A service principal MAY import multiple documents at once and propose links across the imported content and existing graph in the same operation.
 
 - Bulk import creates documents + sections + draft link proposals
 - Each link still requires human bilateral approval
 - Nothing is trusted until approved
 
-### 7.5 External Updates
-
-When an external source changes:
-
-- The adapter emits new hashes for affected sections
-- New versions are recorded in remmd
-- Graph walks and thread updates follow the standard mechanism
-- No special path for external vs internal changes
-
 ---
 
 ## 8. Tag Subscriptions
 
-Tags classify sections for policy, filtering, and discovery. Subscriptions notify owners when new matching content appears.
+Tags classify sections for filtering and discovery. Subscriptions notify owners when new matching content appears.
 
 ### 8.1 Tags
 
-A section MAY carry tags for classification, policy selection, and discovery.
+A section MAY carry tags for classification and discovery.
 
 - Tags follow the same versioning as content — every tag mutation is recorded
-- Tags that influence policy MUST belong to the active version
 
 ### 8.2 Subscriptions
 
@@ -321,7 +338,6 @@ Human principals MAY:
 - Create, edit, and delete content
 - Propose, approve, reaffirm, withdraw, and archive links
 - Comment in threads
-- Grant waivers
 
 ### 9.2 Service Principals
 
@@ -336,48 +352,68 @@ Service principals MUST NOT:
 
 - Approve or reject links
 - Reaffirm or withdraw links
-- Grant waivers
 
 ### 9.3 Invariant
 
-Every approval, rejection, reaffirmation, withdrawal, and waiver MUST record the acting human principal, the exact section snapshots reviewed, and a timestamp.
+Every approval, rejection, reaffirmation, and withdrawal MUST record the acting human principal, the exact section snapshots reviewed, and a timestamp.
 
 ---
 
-## 10. Policy and Gates
+## 10. Error Surface
 
-Policies turn the trust graph into operational control.
+Service principals (LLMs, integrations) are first-class consumers. They create content, propose links, push hashes, and read state. When something fails, the error must give the caller enough to self-correct without human intervention.
 
-### 10.1 Policy
+### 10.1 Error Structure
 
-A policy defines a predicate that must hold at a gate.
+Every error carries:
 
-- **selector** — which sections or links the policy applies to (by tag, type, document)
-- **predicate** — what must be true (e.g., "at least one aligned `tests` link")
-- **surface** — where it's enforced (merge, publish, release, audit, dashboard)
-- **severity** — blocking or warning
+| Field | Required | Description |
+|---|---|---|
+| `code` | yes | Stable string code — the only field callers should match on |
+| `entity` | yes | What kind of thing failed (document, section, link, thread) |
+| `id` | when applicable | Which specific entity |
+| `message` | yes | Human-readable explanation — full sentence, entity + action + cause |
+| `fields` | when applicable | Structured context (e.g., expected vs actual hash) |
+| `remediation` | yes | What to do next — specific command or action to resolve |
 
-### 10.2 Gate Check
+### 10.2 Error Codes
 
-A gate check evaluates policies against the current graph and returns:
+| Code | When | Remediation pattern |
+|---|---|---|
+| `NOT_FOUND` | Entity doesn't exist | Check ref, list available entities |
+| `STALE_CONTEXT` | Content changed between review-load and approve-submit | Refresh content, re-review |
+| `UNAUTHORIZED` | Service principal attempted a trust action | Requires human — route to human principal |
+| `CONFLICT` | Invalid state transition (e.g., approve an archived link) | Check current state |
+| `INVALID_REF` | Malformed `@ref` or `@ext:` format | Fix ref format |
+| `INVALID_METADATA` | Metadata JSON doesn't parse or missing required fields | Fix JSON |
+| `DUPLICATE` | Entity already exists (e.g., `@ext:notion/page-abc` already registered) | Use existing entity or choose different ID |
+| `CONTENT_TYPE_MISMATCH` | Wrong operation for content type (e.g., push hash on native, set body on external) | Use the correct operation for this content type |
+| `VALIDATION` | Input doesn't meet requirements (missing field, bad format) | Fix the specific field cited in `fields` |
 
-- pass or fail
-- exact failing sections/links
-- what's missing and who needs to act
-- waiver status if present
+### 10.3 Output Modes
 
-Gate failures are always explainable. No aggregate "trust score low" messages.
+All CLI commands support two output modes:
 
-### 10.3 Waivers
+- **Human (default)** — `message` printed to stderr, structured output to stdout
+- **Machine (`--json`)** — full error structure as JSON to stdout
 
-A waiver is a human decision to bypass a policy violation temporarily.
+Machine mode is the primary interface for service principals. Human mode is sugar.
 
-- Waivers have a reason and expiry
-- Waivers are visible as waived (not hidden)
-- Expired waivers re-open violations automatically
-- Waivers do NOT create trust — they bypass gates
+### 10.4 Success Responses
 
-Only human principals MAY grant waivers.
+Success responses follow the same principle — structured, predictable, sufficient for the next action:
+
+```json
+{
+  "ok": true,
+  "entity": "section",
+  "id": "@s3",
+  "action": "created",
+  "fields": { "doc_id": "D1", "hash": "sha256:abc...", "version": 1 }
+}
+```
+
+The caller should never need to parse human-readable output or run a follow-up query to learn the ID of what it just created.
 
 ---
 
@@ -405,6 +441,6 @@ The implementation is correct only if all of the following remain true:
 6. Service principals never satisfy trust actions
 7. Graph walks on every change — blast radius is shown before action
 8. Cascading changes are tracked as causal chains in threads
-9. Source adapters add node types without changing the mechanism
+9. External content participates in the graph identically to native content — the mechanism never changes
 10. Every decision is immutable and auditable
 11. Stale context cannot approve current truth
