@@ -1,0 +1,22 @@
+{
+  "name": "@lagz0ne/remmd",
+  "version": "0.1.0",
+  "description": "Human-approved agreement between independently maintained document sections",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lagz0ne/remmd"
+  },
+  "bin": {
+    "remmd": "bin/remmd"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/"
+  ],
+  "os": ["darwin", "linux", "win32"],
+  "cpu": ["x64", "arm64"]
+}
