@@ -194,29 +194,18 @@ Every link has a persistent thread. The thread is the review workspace.
 
 ### 5.2 Review Flow
 
-```
-propose link → thread opens → comment/iterate → both approve → ALIGNED
-```
+`propose link → thread opens → comment/iterate → both approve → ALIGNED`
 
-1. Proposer opens link with rationale
-2. Counterparty reviews in thread — sees section content, rationale, scope
-3. Either side comments, author edits content if needed (immediate, versioned, diff appears in thread)
-4. When both sides approve, the link is ALIGNED against current section snapshots
-
-No special states. Just keep iterating in the thread until both sides approve. Same as a PR: push, review, request changes, push, approve.
+Same as a PR: push, review, request changes, push, approve. Edits are immediate, versioned, and diff appears in thread.
 
 ### 5.3 Content Change Review
 
-When content changes in a section that belongs to an aligned link:
+When content changes in an aligned link's section:
 
-1. System detects impacted links via graph walk
-2. Author sees **impact preview** — all impacted links grouped by counterparty, relationship type, and last aligned state. Shown at edit time, not as an afterthought.
-3. Author reaffirms or withdraws each impacted link
-   - **reaffirm** — "I still stand behind this relationship after my change"
-   - **withdraw** — archives the link immediately with reason. Counterparty is notified but cannot block. Human made the call.
-4. Reaffirmed links become STALE (waiting on counterparty)
-5. Counterparty reviews in thread — sees **cumulative diff** since last ALIGNED (not individual edits), full thread history
-6. Counterparty approves or requests changes (iterate in thread)
+1. Graph walk detects impacted links → author sees **impact preview** (grouped by counterparty, relationship type, last aligned state)
+2. Author **reaffirms** ("I still stand behind this") or **withdraws** (archives immediately with reason)
+3. Reaffirmed links become STALE → counterparty reviews **cumulative diff** since last ALIGNED in thread
+4. Counterparty approves or requests changes (iterate in thread)
 
 Bulk reaffirm is supported when multiple links are impacted by one edit.
 
