@@ -233,34 +233,9 @@ If the underlying section snapshots change between when a reviewer loads the rev
 
 The graph is the trust network. Nodes are sections, edges are links.
 
-### 6.1 Graph Walk
+Every content edit triggers a graph walk from the changed section. The system identifies all impacted links, updates their threads with change context, and shows the author the full blast radius before taking stance.
 
-Every content edit triggers a graph walk from the changed section.
-
-- The system identifies all links containing the changed section
-- Each impacted link's thread is updated with the change context
-- The author sees the full blast radius before taking stance
-
-### 6.2 Cascading Changes
-
-Changes propagate through the graph as a causal chain.
-
-Example:
-1. PM edits `@r2` (requirement) → links to Eng and QA go STALE
-2. Eng updates `@i2` (implementation follows the requirement change) → links to QA go STALE again
-3. QA updates `@t2` (tests follow the implementation change)
-
-Each thread captures the causal context: *why* this review was triggered, what upstream change caused it.
-
-### 6.3 Impact Preview
-
-Before reaffirming, the author sees:
-
-- All impacted links grouped by counterparty
-- Relationship type and last aligned state per link
-- Which counterparties will need to review
-
-This is shown at edit time, not as an afterthought.
+Changes propagate as causal chains: PM edits `@r2` → Eng link goes STALE → Eng updates `@i2` → QA link goes STALE. Each thread captures *why* the review was triggered. Impact preview groups affected links by counterparty, relationship type, and last aligned state — shown at edit time, not as an afterthought.
 
 ---
 
