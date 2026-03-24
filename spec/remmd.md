@@ -25,42 +25,17 @@
 
 ## 3. Content Model
 
-### 3.1 Documents
+### 3.1 Documents and Sections
 
-A document is a container of sections belonging to a tenant.
+A document is a container of sections belonging to a tenant. The system parses structure and assigns stable `@refs` to every section automatically — no manual marking required.
 
-- Created via CLI or source adapter
-- DX-first: a single call can create a full document from markdown-ish input
-- The system parses structure and assigns stable `@refs` to every section automatically
-- Documents have an owner, belong to a tenant, and carry metadata
+Sections are the minimum accountable unit. `@refs` are system-assigned, stable across edits. Sections MAY be nested (parent-child), are hierarchical and non-overlapping, and MAY carry tags for classification and discovery.
 
-### 3.2 Sections
+### 3.2 Versioning and Deletion
 
-A section is the minimum accountable unit. Every heading, block, or structural element gets a stable `@ref` from the moment it exists.
+Content edits are immediate — no draft/activate lifecycle. Every edit creates a new version of the section. Previous versions are immutable and retained. Content hashes per section drive change detection.
 
-- `@refs` are system-assigned, stable across edits (like agent-browser element refs)
-- Sections MAY be nested (parent-child)
-- Sections are hierarchical and non-overlapping within a document
-- No manual marking required — every section is linkable by default
-- A section MAY carry tags for classification and discovery
-
-### 3.3 Versioning
-
-Content edits are immediate. There is no draft/activate lifecycle for content.
-
-- Every edit creates a new version of the section
-- Previous versions are immutable and retained
-- The system tracks content hashes per section for change detection
-- Version history is always accessible
-
-### 3.4 Deletion
-
-Deleting a section is a content operation that carries metadata.
-
-- Deletion includes reason and optional replacement refs (like a PR description)
-- Deletion impacts all links containing the section
-- Counterparties review the deletion via their link threads
-- A link survives with remaining sections, or breaks if none are left
+Deletion includes reason and optional replacement refs. Deletion impacts all links containing the section — a link survives with remaining sections, or breaks if none are left. Counterparties review via their link threads.
 
 ### 3.5 Content Types
 
