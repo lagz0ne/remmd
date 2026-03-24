@@ -7,19 +7,13 @@
 
 ## 1. Design Axioms
 
-1. **Don't derive, match.** Documents are independent claims. There is no hierarchy between them. Agreement is bilateral.
-
-2. **Content is immediate, links are reviewed.** Authors own their content and edit freely. Every edit is versioned. Links — the agreements between sections — are the only entity that requires review and bilateral approval.
-
-3. **Sections are the accountable unit.** Whole documents are too coarse. Agreement, approval, coverage, and policy all converge at the section level.
-
-4. **Trust attaches to exact snapshots.** An agreement is approved against a specific combination of section versions and relationship definition. Stale context cannot approve current truth.
-
-5. **AI drafts, humans approve.** Service principals may create content, propose links, suggest rationale, and route work. Service principals MUST NOT approve, reject, or waive. Only humans create trust.
-
-6. **The mechanism is universal.** Native docs, code paths, Jira tickets, Figma frames, Confluence pages — all become sections with `@refs` and content hashes. The link/thread/approval mechanism never changes. Only node types expand.
-
-7. **The graph is the product.** Every edit walks the graph. Impact is shown before action. Cascading changes are tracked as causal chains across threads.
+1. **Don't derive, match.** Documents are independent claims. No hierarchy. Agreement is bilateral.
+2. **Content is immediate, links are reviewed.** Every edit is versioned. Links are the only entity requiring bilateral approval.
+3. **Sections are the accountable unit.** Agreement, approval, and coverage converge at the section level.
+4. **Trust attaches to exact snapshots.** Stale context cannot approve current truth.
+5. **AI drafts, humans approve.** Service principals MUST NOT approve, reject, or waive. Only humans create trust.
+6. **The mechanism is universal.** Native docs, code paths, Jira tickets, Figma frames — all become sections with `@refs` and content hashes. Only node types expand.
+7. **The graph is the product.** Every edit walks the graph. Impact before action. Cascading changes tracked as causal chains.
 
 ---
 
