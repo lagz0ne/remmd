@@ -75,64 +75,15 @@ Content that lives in an external system. remmd stores only identity, hash, and 
 
 ## 4. Links
 
-A link is the only entity that requires review. It is the agreement between sections.
+A link is the only entity that requires review — the agreement between section(s) and section(s), potentially across multiple documents. One link, one thread, one approval. Links are cross-document only (v1).
 
-### 4.1 Structure
+**Relationship types** (exactly one per link): `agrees_with` (symmetric — both sides state the same thing), `implements` (directional — one side implements the other's specification), `tests` (directional — one side verifies the other's claims), `evidences` (directional — one side provides evidence for the other's claims).
 
-A link connects **section(s) to section(s)**, potentially across multiple documents. Like a GitHub PR that spans multiple files.
+**Rationale:** Every link MUST include **claim** (why), **scope** (what's covered), **exclusions** (what's not). MAY be AI-drafted. Approval includes approval of the rationale.
 
-- One link, one thread, one approval — covers the whole group
-- Each link has a relationship type, rationale, scope, and exclusions
-- Each link endpoint has an independent intervention setting (how loudly to signal on change)
-- Links are cross-document only (v1)
+**Proposal:** Creating a link is a proposal (like opening a PR). Both sides must approve for the link to become ALIGNED. The proposer's side is pending, not auto-approved.
 
-### 4.2 Relationship Types
-
-v1 ships with four relationship types:
-
-| Type | Meaning |
-|---|---|
-| `agrees_with` | Both sides state the same thing (symmetric) |
-| `implements` | One side implements the other's specification (directional) |
-| `tests` | One side verifies the other's claims (directional) |
-| `evidences` | One side provides evidence for the other's claims (directional) |
-
-- A link MUST have exactly one relationship type
-- Relationship type affects review prompts and policy, not the approval mechanism
-
-### 4.3 Rationale
-
-Every link MUST include:
-
-- **claim** — why the relationship exists
-- **scope** — what is covered
-- **exclusions** — what is intentionally not covered
-
-Rationale MAY be AI-drafted. Approval of the link includes approval of the rationale.
-
-### 4.4 Proposal
-
-Creating a link is a proposal — like opening a PR.
-
-- `remmd link @a1 @a2 --implements @b1 @b2 --rationale "..."`
-- A review thread opens immediately
-- The proposer's side is pending (not auto-approved — it's a request)
-- Both sides must approve for the link to become ALIGNED
-
-### 4.5 Intervention
-
-Each link endpoint has an independent intervention setting controlling review urgency:
-
-| Level | Behavior |
-|---|---|
-| `watch` | Visible in dashboards, no routed task |
-| `notify` | Normal-priority review task |
-| `urgent` | High-priority task + immediate notification |
-| `blocking` | High-priority task + blocks matching gates until resolved |
-
-- Intervention is operational, not semantic
-- Changing intervention does NOT invalidate approvals
-- Same section can have `watch` on one link and `blocking` on another
+**Intervention** (per endpoint, operational, not semantic): `watch` (dashboard only), `notify` (normal-priority task), `urgent` (high-priority + notification), `blocking` (high-priority + blocks matching gates). Changing intervention does NOT invalidate approvals.
 
 ---
 
