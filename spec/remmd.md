@@ -87,32 +87,14 @@ Content stored and managed by remmd. This is the default.
 
 #### 3.5.2 External Content
 
-Content that lives in an external system. remmd stores only the identity, hash, and metadata — not the body.
+Content that lives in an external system. remmd stores only identity, hash, and metadata — not the body.
 
-- Registered with a system namespace and external identifier
 - `@refs` are namespaced: `@ext:<system>/<external_id>` (e.g., `@ext:notion/page-abc`, `@ext:figma/frame-123`)
-- Hash is provided by the source — opaque to remmd
-- Metadata is a flexible JSON object describing provenance, location, and system-specific context
-
-Metadata examples:
-
-```json
-{ "system": "notion", "page_id": "abc123", "workspace": "acme" }
-{ "system": "git", "repo": "github.com/acme/api", "path": "src/handler.go", "ref": "main" }
-{ "system": "manual", "description": "Q1 external audit report" }
-```
-
-**Capabilities:**
-
-| Capability | How |
-|---|---|
-| Detection | Manual or push (CLI/API) |
-| Diff | Optional — text diff provided on hash push |
-| Rendering | Reviewer verifies at external source |
-
-**Granularity:** By default, one external source = one section. An external system MAY register multiple sections with their own IDs and hashes under a single document to express finer structure.
-
-**Review basis:** When approving a link involving external content, the reviewer attests "I verified this externally." The approval record captures `basis: external-verify` to distinguish from native content where remmd guarantees visibility. Future: verification/reverification mechanisms may strengthen this.
+- Hash is provided by source — opaque to remmd
+- Metadata is flexible JSON: `{ "system": "notion", "page_id": "abc123", "workspace": "acme" }`
+- Detection: manual or push (CLI/API). Diff: optional, provided on hash push. Rendering: reviewer verifies at source.
+- Granularity: one source = one section by default. MAY register multiple sections per document.
+- Review basis: `external-verify` — reviewer attests they verified at the external source. Recorded in approval.
 
 ---
 
