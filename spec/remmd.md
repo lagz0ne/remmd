@@ -17,21 +17,21 @@
 
 ---
 
-## 3. Content Model
+## 2. Content Model
 
-### 3.1 Documents and Sections
+### 2.1 Documents and Sections
 
 A document is a container of sections belonging to a tenant. The system parses structure and assigns stable `@refs` to every section automatically — no manual marking required.
 
 Sections are the minimum accountable unit. `@refs` are system-assigned, stable across edits. Sections MAY be nested (parent-child), are hierarchical and non-overlapping, and MAY carry tags for classification and discovery.
 
-### 3.2 Versioning and Deletion
+### 2.2 Versioning and Deletion
 
 Content edits are immediate — no draft/activate lifecycle. Every edit creates a new version of the section. Previous versions are immutable and retained. Content hashes per section drive change detection.
 
 Deletion includes reason and optional replacement refs. Deletion impacts all links containing the section — a link survives with remaining sections, or breaks if none are left. Counterparties review via their link threads.
 
-### 3.5 Content Types
+### 2.3 Content Types
 
 Every section has four primitives regardless of where the content lives:
 
@@ -44,7 +44,7 @@ Every section has four primitives regardless of where the content lives:
 
 Links, threads, approvals, graph walks, and blast radius operate identically across all content types. Content type affects storage, detection, and review UX — never the trust mechanism.
 
-#### 3.5.1 Native Content
+#### 2.3.1 Native Content
 
 Content stored and managed by remmd. This is the default.
 
@@ -54,7 +54,7 @@ Content stored and managed by remmd. This is the default.
 - Metadata: `{ "system": "native", "format": "markdown" }`
 - Full detection, diff, and rendering built-in
 
-#### 3.5.2 External Content
+#### 2.3.2 External Content
 
 Content that lives in an external system. remmd stores only identity, hash, and metadata — not the body.
 
@@ -67,7 +67,7 @@ Content that lives in an external system. remmd stores only identity, hash, and 
 
 ---
 
-## 4. Links
+## 3. Links
 
 A link is the only entity that requires review — the agreement between section(s) and section(s), potentially across multiple documents. One link, one thread, one approval. Links are cross-document only (v1).
 
@@ -81,26 +81,17 @@ A link is the only entity that requires review — the agreement between section
 
 ---
 
-## 5. Review Model
+## 4. Review Model
 
-Review is thread-based, exactly like code review on a PR. There is no special ceremony.
+Review is thread-based, like PR code review. Every link has a persistent thread — the review workspace. Comments, diffs, rationale, decisions, and system events all live in the thread. Threads accumulate across review cycles. Comments are immutable after creation.
 
-### 5.1 Threads
-
-Every link has a persistent thread. The thread is the review workspace.
-
-- Comments, diffs, rationale, and decisions all live in the thread
-- Threads accumulate across all review cycles — when a link goes STALE six months later, the reviewer sees the full negotiation history
-- System events (content changes, version diffs, status transitions) appear in the thread alongside human comments
-- Comments are immutable after creation
-
-### 5.2 Review Flow
+### 4.1 Review Flow
 
 `propose link → thread opens → comment/iterate → both approve → ALIGNED`
 
 Same as a PR: push, review, request changes, push, approve. Edits are immediate, versioned, and diff appears in thread.
 
-### 5.3 Content Change Review
+### 4.2 Content Change Review
 
 When content changes in an aligned link's section:
 
@@ -111,7 +102,7 @@ When content changes in an aligned link's section:
 
 Bulk reaffirm is supported when multiple links are impacted by one edit.
 
-### 5.4 Link States
+### 4.3 Link States
 
 Derived from approval status, not explicitly set: `pending` (not yet approved by both sides) → `aligned` (both approved against current snapshots) → `stale` (content changed, waiting on counterparty). Also: `broken` (section deleted or became unresolvable), `archived` (explicitly closed by a participant). No "disputed" state — rejection is just "request changes" and iterate.
 
@@ -119,7 +110,7 @@ Derived from approval status, not explicitly set: `pending` (not yet approved by
 
 ---
 
-## 6. Graph
+## 5. Graph
 
 The graph is the trust network. Nodes are sections, edges are links.
 
@@ -129,7 +120,7 @@ Changes propagate as causal chains: PM edits `@r2` → Eng link goes STALE → E
 
 ---
 
-## 7. Hash Updates
+## 6. Hash Updates
 
 Content hashes reach remmd through two channels: **built-in** (remmd computes hash on edit for native content) and **push** (external system calls CLI/API with `{ref, new_hash, ?diff}`). No special path for external vs internal — the graph doesn't care how the hash arrived.
 
@@ -137,7 +128,7 @@ Bulk import: a service principal MAY import multiple documents at once and propo
 
 ---
 
-## 8. Tag Subscriptions
+## 7. Tag Subscriptions
 
 Sections MAY carry tags for classification and discovery. Tags follow the same versioning as content.
 
@@ -147,7 +138,7 @@ Subscriptions create notifications, NOT links. The subscriber decides manually w
 
 ---
 
-## 9. Principals
+## 8. Principals
 
 **Human principals** MAY: create/edit/delete content, propose/approve/reaffirm/withdraw/archive links, comment in threads.
 
@@ -157,19 +148,19 @@ Every trust action MUST record the acting human principal, the exact section sna
 
 ---
 
-## 10. Error Surface
+## 9. Error Surface
 
 Service principals (LLMs, integrations) are first-class consumers. When something fails, the error must give the caller enough to self-correct without human intervention.
 
-### 10.1 Error Structure
+### 9.1 Error Structure
 
 Every error carries: `code` (stable string — the only field callers match on), `entity` + `id` (what failed), `message` (human-readable, full sentence), `fields` (structured context, e.g., expected vs actual hash), `remediation` (what to do next — specific command or action).
 
-### 10.2 Error Codes
+### 9.2 Error Codes
 
 `NOT_FOUND`, `STALE_CONTEXT`, `UNAUTHORIZED`, `CONFLICT`, `INVALID_REF`, `INVALID_METADATA`, `DUPLICATE`, `CONTENT_TYPE_MISMATCH`, `VALIDATION`. Each includes a remediation hint specific to the failure.
 
-### 10.3 Output Modes
+### 9.3 Output Modes
 
 - **Human (default)** — `message` to stderr, structured output to stdout
 - **Machine (`--json`)** — full error/success structure as JSON to stdout
@@ -178,7 +169,7 @@ Success responses are structured: `{"ok": true, "entity": "section", "id": "@s3"
 
 ---
 
-## 11. Non-Goals (v1)
+## 10. Non-Goals (v1)
 
 - Arbitrary overlapping inline spans
 - Same-document links
@@ -190,7 +181,7 @@ Success responses are structured: `{"ok": true, "entity": "section", "id": "@s3"
 
 ---
 
-## 12. Invariants
+## 11. Invariants
 
 The implementation is correct only if all of the following remain true:
 
