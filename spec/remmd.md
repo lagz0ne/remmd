@@ -155,31 +155,11 @@ Subscriptions create notifications, NOT links. The subscriber decides manually w
 
 ## 9. Principals
 
-### 9.1 Human Principals
+**Human principals** MAY: create/edit/delete content, propose/approve/reaffirm/withdraw/archive links, comment in threads.
 
-Human principals MAY:
+**Service principals** (AI, adapters, integrations) MAY: create/edit content, propose links, post comments, suggest repairs. Service principals MUST NOT approve, reject, reaffirm, or withdraw links.
 
-- Create, edit, and delete content
-- Propose, approve, reaffirm, withdraw, and archive links
-- Comment in threads
-
-### 9.2 Service Principals
-
-Service principals (AI, adapters, integrations) MAY:
-
-- Create and edit content (auto-created docs, imports, generated drafts)
-- Propose links with rationale
-- Post system comments and summaries
-- Suggest repairs and route work
-
-Service principals MUST NOT:
-
-- Approve or reject links
-- Reaffirm or withdraw links
-
-### 9.3 Invariant
-
-Every approval, rejection, reaffirmation, and withdrawal MUST record the acting human principal, the exact section snapshots reviewed, and a timestamp.
+Every trust action MUST record the acting human principal, the exact section snapshots reviewed, and a timestamp.
 
 ---
 

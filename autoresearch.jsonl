@@ -9,3 +9,4 @@
 {"run":9,"commit":"eba1689","metrics":{"words":1973,"lines":303,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress content model basics","timestamp":1774323496}
 {"run":10,"commit":"5c780cb","metrics":{"words":1879,"lines":282,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress hash updates","timestamp":1774323519}
 {"run":11,"commit":"d671ffc","metrics":{"words":1691,"lines":233,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress Links section","timestamp":1774323548}
+{"run":12,"commit":"3a229dd","metrics":{"words":1643,"lines":213,"coverage":"65/65","coverage_pct":100,"missing":0},"status":"keep","description":"compress principals","timestamp":1774323569}
