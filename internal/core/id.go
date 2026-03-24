@@ -33,9 +33,11 @@ func (id ID) String() string {
 
 // Ref is a document-scoped, human-readable section reference.
 // Format: @{letters}{number}, e.g. @a1, @b3, @aa27.
+// External refs use format @ext:system/id.
 type Ref struct {
-	Letters string
-	Seq     int
+	Letters  string
+	Seq      int
+	External string
 }
 
 // NewRef creates a Ref from a document ID and a 1-based sequence number.
@@ -45,7 +47,46 @@ func NewRef(_ string, seq int) Ref {
 }
 
 func (r Ref) String() string {
+	if r.External != "" {
+		return "@" + r.External
+	}
 	return fmt.Sprintf("@%s%d", r.Letters, r.Seq)
+}
+
+// NewExternalRef creates a Ref pointing to an external system resource.
+func NewExternalRef(system, externalID string) Ref {
+	return Ref{External: fmt.Sprintf("ext:%s/%s", system, externalID)}
+}
+
+// IsExternal returns true if this ref points to an external system.
+func (r Ref) IsExternal() bool {
+	return r.External != ""
+}
+
+// System extracts the system name from an external ref (e.g. "notion" from "ext:notion/page-abc").
+func (r Ref) System() string {
+	if !r.IsExternal() {
+		return ""
+	}
+	after := strings.TrimPrefix(r.External, "ext:")
+	idx := strings.Index(after, "/")
+	if idx < 0 {
+		return ""
+	}
+	return after[:idx]
+}
+
+// ExternalID extracts the ID from an external ref (e.g. "page-abc" from "ext:notion/page-abc").
+func (r Ref) ExternalID() string {
+	if !r.IsExternal() {
+		return ""
+	}
+	after := strings.TrimPrefix(r.External, "ext:")
+	idx := strings.Index(after, "/")
+	if idx < 0 {
+		return ""
+	}
+	return after[idx+1:]
 }
 
 // ParseRef parses a string like "@a1" into a Ref.
@@ -55,6 +96,15 @@ func ParseRef(s string) (Ref, error) {
 		return Ref{}, fmt.Errorf("invalid ref %q: must start with @ followed by letters and digits", s)
 	}
 	body := s[1:]
+
+	if strings.HasPrefix(body, "ext:") {
+		rest := body[4:]
+		slashIdx := strings.Index(rest, "/")
+		if slashIdx <= 0 || slashIdx == len(rest)-1 {
+			return Ref{}, fmt.Errorf("invalid external ref %q: must be @ext:<system>/<id>", s)
+		}
+		return Ref{External: body}, nil
+	}
 
 	splitIdx := -1
 	for i, c := range body {
