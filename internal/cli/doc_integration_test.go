@@ -335,3 +335,204 @@ func extractDocID(t *testing.T, output string) string {
 	}
 	return match[1]
 }
+
+func TestDocCreateExternal(t *testing.T) {
+	t.Parallel()
+	out, err := execCmd(t, "doc", "create", "Notion Page",
+		"--external",
+		"--system", "notion",
+		"--external-id", "page-abc",
+		"--hash", "sha256abc",
+	)
+	if err != nil {
+		t.Fatalf("doc create external error: %v", err)
+	}
+	if !strings.Contains(out, "external section") {
+		t.Errorf("output missing 'external section': %s", out)
+	}
+	if !strings.Contains(out, "@ext:notion/page-abc") {
+		t.Errorf("output missing external ref '@ext:notion/page-abc': %s", out)
+	}
+}
+
+func TestDocCreateExternalWithMetadata(t *testing.T) {
+	t.Parallel()
+	out, err := execCmd(t, "doc", "create", "With Meta",
+		"--external",
+		"--system", "figma",
+		"--external-id", "frame-1",
+		"--hash", "hash1",
+		"--metadata", `{"file_key":"xyz"}`,
+	)
+	if err != nil {
+		t.Fatalf("doc create external with metadata error: %v", err)
+	}
+	if !strings.Contains(out, "external section") {
+		t.Errorf("output missing 'external section': %s", out)
+	}
+}
+
+func TestDocCreateExternalMissingFlags(t *testing.T) {
+	t.Parallel()
+	// --external without required --system, --external-id, --hash should error
+	_, err := execCmd(t, "doc", "create", "Bad", "--external")
+	if err == nil {
+		t.Fatal("expected error when --external is used without --system, --external-id, --hash")
+	}
+}
+
+func TestShowExternalSection(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: create an external doc
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Ext Show",
+			"--external",
+			"--system", "test",
+			"--external-id", "t1",
+			"--hash", "abc123",
+		},
+	)
+	if err != nil {
+		t.Fatalf("create external doc error: %v", err)
+	}
+	_ = outputs
+
+	// Step 2: show the external section by its ref
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"show", "@ext:test/t1"},
+	)
+	if err != nil {
+		t.Fatalf("show external section error: %v", err)
+	}
+	showOut := outputs2[0]
+	if !strings.Contains(showOut, "external") {
+		t.Errorf("show output missing 'external': %s", showOut)
+	}
+	if !strings.Contains(showOut, "abc123") {
+		t.Errorf("show output missing hash 'abc123': %s", showOut)
+	}
+	if !strings.Contains(showOut, "test") {
+		t.Errorf("show output missing system name 'test': %s", showOut)
+	}
+}
+
+func TestEditExternalHash(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: create external doc with hash "old"
+	_, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Hash Edit",
+			"--external",
+			"--system", "test",
+			"--external-id", "t1",
+			"--hash", "old",
+		},
+	)
+	if err != nil {
+		t.Fatalf("create external doc error: %v", err)
+	}
+
+	// Step 2: edit the external section hash
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"edit", "@ext:test/t1", "--hash", "new"},
+	)
+	if err != nil {
+		t.Fatalf("edit external hash error: %v", err)
+	}
+	editOut := outputs2[0]
+	if !strings.Contains(editOut, "hash") {
+		t.Errorf("edit output missing 'hash': %s", editOut)
+	}
+	if !strings.Contains(editOut, "updated") {
+		t.Errorf("edit output missing 'updated': %s", editOut)
+	}
+
+	// Step 3: verify via show
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"show", "@ext:test/t1"},
+	)
+	if err != nil {
+		t.Fatalf("show after edit error: %v", err)
+	}
+	showOut := outputs3[0]
+	if !strings.Contains(showOut, "new") {
+		t.Errorf("show output should contain new hash 'new': %s", showOut)
+	}
+}
+
+func TestEditExternalRejectsContent(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: create external doc
+	_, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "No Edit",
+			"--external",
+			"--system", "test",
+			"--external-id", "t1",
+			"--hash", "somehash",
+		},
+	)
+	if err != nil {
+		t.Fatalf("create external doc error: %v", err)
+	}
+
+	// Step 2: try to edit content — should fail for external sections
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"edit", "@ext:test/t1", "--content", "body text"},
+	)
+	if err == nil {
+		t.Fatal("expected error when editing content of an external section")
+	}
+	if !strings.Contains(err.Error(), "external") {
+		t.Errorf("error should mention 'external': %v", err)
+	}
+}
+
+func TestLinkProposeWithExternalRef(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: create a native doc (produces @a1)
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Native Doc", "--content", "# API Spec"},
+	)
+	if err != nil {
+		t.Fatalf("create native doc error: %v", err)
+	}
+	nativeRef := extractFirstRef(t, outputs[0])
+
+	// Step 2: create an external doc (produces @ext:test/t1)
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "External Doc",
+			"--external",
+			"--system", "test",
+			"--external-id", "t1",
+			"--hash", "exthash",
+		},
+	)
+	if err != nil {
+		t.Fatalf("create external doc error: %v", err)
+	}
+
+	// Step 3: propose a link between native and external sections
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "propose", nativeRef,
+			"--implements", "@ext:test/t1",
+			"--rationale", "impl covers external spec",
+		},
+	)
+	if err != nil {
+		t.Fatalf("link propose error: %v", err)
+	}
+	proposeOut := outputs3[0]
+	if !strings.Contains(proposeOut, "opened") {
+		t.Errorf("propose output missing 'opened': %s", proposeOut)
+	}
+	if !strings.Contains(proposeOut, "@ext:test/t1") {
+		t.Errorf("propose output missing external ref: %s", proposeOut)
+	}
+}

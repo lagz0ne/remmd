@@ -569,3 +569,325 @@ func TestFindSectionByRefGlobal(t *testing.T) {
 		t.Errorf("expected ErrNotFound, got %T: %v", err, err)
 	}
 }
+
+// --- External content support (RED tests — won't compile until implementation exists) ---
+
+func TestCreateSection_External(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	ref := core.NewExternalRef("notion", "page-abc")
+	s := &core.Section{
+		ID:          core.NewID().String(),
+		DocID:       docID,
+		Ref:         ref,
+		Type:        core.SectionHeading,
+		Title:       "External Section",
+		Content:     "",
+		ContentHash: "ext-hash-123",
+		ContentType: core.ContentExternal,
+		Metadata:    `{"system":"notion","page_id":"abc"}`,
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection external: %v", err)
+	}
+
+	sections, err := repo.ListSections(ctx, docID)
+	if err != nil {
+		t.Fatalf("ListSections: %v", err)
+	}
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+	if sections[0].ContentType != core.ContentExternal {
+		t.Errorf("ContentType = %q, want %q", sections[0].ContentType, core.ContentExternal)
+	}
+	if sections[0].Metadata != `{"system":"notion","page_id":"abc"}` {
+		t.Errorf("Metadata = %q, want %q", sections[0].Metadata, `{"system":"notion","page_id":"abc"}`)
+	}
+	if sections[0].ContentHash != "ext-hash-123" {
+		t.Errorf("ContentHash = %q, want %q", sections[0].ContentHash, "ext-hash-123")
+	}
+}
+
+func TestListSections_ReturnsContentTypeAndMetadata(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	// Native section
+	nativeRef, _ := core.ParseRef("@a1")
+	native := &core.Section{
+		ID:          core.NewID().String(),
+		DocID:       docID,
+		Ref:         nativeRef,
+		Type:        core.SectionHeading,
+		Title:       "Native",
+		Content:     "native content",
+		ContentHash: core.ContentHash("native content"),
+		ContentType: core.ContentNative,
+		Metadata:    "{}",
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, native); err != nil {
+		t.Fatalf("CreateSection native: %v", err)
+	}
+
+	// External section
+	extRef := core.NewExternalRef("jira", "PROJ-42")
+	external := &core.Section{
+		ID:          core.NewID().String(),
+		DocID:       docID,
+		Ref:         extRef,
+		Type:        core.SectionHeading,
+		Title:       "External",
+		Content:     "",
+		ContentHash: "jira-hash-42",
+		ContentType: core.ContentExternal,
+		Metadata:    `{"system":"jira","issue_key":"PROJ-42"}`,
+		Order:       2,
+	}
+	if err := repo.CreateSection(ctx, external); err != nil {
+		t.Fatalf("CreateSection external: %v", err)
+	}
+
+	sections, err := repo.ListSections(ctx, docID)
+	if err != nil {
+		t.Fatalf("ListSections: %v", err)
+	}
+	if len(sections) != 2 {
+		t.Fatalf("expected 2 sections, got %d", len(sections))
+	}
+
+	// First section: native
+	if sections[0].ContentType != core.ContentNative {
+		t.Errorf("sections[0].ContentType = %q, want %q", sections[0].ContentType, core.ContentNative)
+	}
+	if sections[0].Metadata != "{}" {
+		t.Errorf("sections[0].Metadata = %q, want %q", sections[0].Metadata, "{}")
+	}
+
+	// Second section: external
+	if sections[1].ContentType != core.ContentExternal {
+		t.Errorf("sections[1].ContentType = %q, want %q", sections[1].ContentType, core.ContentExternal)
+	}
+	if sections[1].Metadata != `{"system":"jira","issue_key":"PROJ-42"}` {
+		t.Errorf("sections[1].Metadata = %q, want %q", sections[1].Metadata, `{"system":"jira","issue_key":"PROJ-42"}`)
+	}
+}
+
+func TestFindSectionByRef_External(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	extRef := core.NewExternalRef("test", "t1")
+	sectionID := core.NewID().String()
+	s := &core.Section{
+		ID:          sectionID,
+		DocID:       docID,
+		Ref:         extRef,
+		Type:        core.SectionHeading,
+		Title:       "External Find",
+		Content:     "",
+		ContentHash: "ext-find-hash",
+		ContentType: core.ContentExternal,
+		Metadata:    `{"system":"test","id":"t1"}`,
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection: %v", err)
+	}
+
+	got, err := repo.FindSectionByRef(ctx, docID, "@ext:test/t1")
+	if err != nil {
+		t.Fatalf("FindSectionByRef: %v", err)
+	}
+	if got.ID != sectionID {
+		t.Errorf("ID = %q, want %q", got.ID, sectionID)
+	}
+	if got.ContentType != core.ContentExternal {
+		t.Errorf("ContentType = %q, want %q", got.ContentType, core.ContentExternal)
+	}
+	if got.Metadata != `{"system":"test","id":"t1"}` {
+		t.Errorf("Metadata = %q, want %q", got.Metadata, `{"system":"test","id":"t1"}`)
+	}
+	if got.ContentHash != "ext-find-hash" {
+		t.Errorf("ContentHash = %q, want %q", got.ContentHash, "ext-find-hash")
+	}
+}
+
+func TestFindSectionByRefGlobal_External(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	extRef := core.NewExternalRef("test", "t1")
+	sectionID := core.NewID().String()
+	s := &core.Section{
+		ID:          sectionID,
+		DocID:       docID,
+		Ref:         extRef,
+		Type:        core.SectionHeading,
+		Title:       "External Global Find",
+		Content:     "",
+		ContentHash: "ext-global-hash",
+		ContentType: core.ContentExternal,
+		Metadata:    `{"system":"test","id":"t1"}`,
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection: %v", err)
+	}
+
+	got, gotDocID, err := repo.FindSectionByRefGlobal(ctx, "@ext:test/t1")
+	if err != nil {
+		t.Fatalf("FindSectionByRefGlobal: %v", err)
+	}
+	if got.ID != sectionID {
+		t.Errorf("ID = %q, want %q", got.ID, sectionID)
+	}
+	if gotDocID != docID {
+		t.Errorf("DocID = %q, want %q", gotDocID, docID)
+	}
+	if got.ContentType != core.ContentExternal {
+		t.Errorf("ContentType = %q, want %q", got.ContentType, core.ContentExternal)
+	}
+	if got.Metadata != `{"system":"test","id":"t1"}` {
+		t.Errorf("Metadata = %q, want %q", got.Metadata, `{"system":"test","id":"t1"}`)
+	}
+	if got.ContentHash != "ext-global-hash" {
+		t.Errorf("ContentHash = %q, want %q", got.ContentHash, "ext-global-hash")
+	}
+}
+
+func TestUpdateSectionContent_ExternalHashPush(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	extRef := core.NewExternalRef("github", "pr-99")
+	sectionID := core.NewID().String()
+	s := &core.Section{
+		ID:          sectionID,
+		DocID:       docID,
+		Ref:         extRef,
+		Type:        core.SectionHeading,
+		Title:       "External Hash Push",
+		Content:     "",
+		ContentHash: "old-hash",
+		ContentType: core.ContentExternal,
+		Metadata:    `{"system":"github","pr":"99"}`,
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection: %v", err)
+	}
+
+	// Push a new hash (content stays empty for external sections)
+	if err := repo.UpdateSectionContent(ctx, sectionID, "", "new-hash"); err != nil {
+		t.Fatalf("UpdateSectionContent: %v", err)
+	}
+
+	// Verify the hash was updated
+	sections, err := repo.ListSections(ctx, docID)
+	if err != nil {
+		t.Fatalf("ListSections: %v", err)
+	}
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+	if sections[0].ContentHash != "new-hash" {
+		t.Errorf("ContentHash = %q, want %q", sections[0].ContentHash, "new-hash")
+	}
+
+	// Verify a version was created
+	versions, err := repo.GetSectionVersions(ctx, sectionID)
+	if err != nil {
+		t.Fatalf("GetSectionVersions: %v", err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("expected 1 version, got %d", len(versions))
+	}
+	if versions[0].ContentHash != "new-hash" {
+		t.Errorf("version ContentHash = %q, want %q", versions[0].ContentHash, "new-hash")
+	}
+}
+
+func TestCreateSection_ExternalDefaultMetadata(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	extRef := core.NewExternalRef("slack", "msg-1")
+	s := &core.Section{
+		ID:          core.NewID().String(),
+		DocID:       docID,
+		Ref:         extRef,
+		Type:        core.SectionHeading,
+		Title:       "External Default Meta",
+		Content:     "",
+		ContentHash: "slack-hash",
+		ContentType: core.ContentExternal,
+		Metadata:    "", // empty — should default to "{}"
+		Order:       1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection: %v", err)
+	}
+
+	sections, err := repo.ListSections(ctx, docID)
+	if err != nil {
+		t.Fatalf("ListSections: %v", err)
+	}
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+	if sections[0].Metadata != "{}" {
+		t.Errorf("Metadata = %q, want %q", sections[0].Metadata, "{}")
+	}
+}

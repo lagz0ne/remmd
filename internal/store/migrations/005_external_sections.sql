@@ -1,0 +1,2 @@
+ALTER TABLE sections ADD COLUMN content_type TEXT NOT NULL DEFAULT 'native';
+ALTER TABLE sections ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';

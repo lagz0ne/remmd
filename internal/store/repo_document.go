@@ -72,8 +72,8 @@ func (r *DocumentRepo) ListDocuments(ctx context.Context) ([]*core.Document, err
 	return docs, rows.Err()
 }
 
-// populateSection sets Ref, Type, and ParentRef on a Section from raw scanned strings.
-func populateSection(s *core.Section, refStr, typStr string, parentRefStr sql.NullString) {
+// populateSection sets parsed fields on a Section from raw scanned strings.
+func populateSection(s *core.Section, refStr, typStr string, parentRefStr sql.NullString, contentType, metadata string) {
 	ref, _ := core.ParseRef(refStr)
 	s.Ref = ref
 	s.Type = core.SectionType(typStr)
@@ -81,6 +81,8 @@ func populateSection(s *core.Section, refStr, typStr string, parentRefStr sql.Nu
 		pref, _ := core.ParseRef(parentRefStr.String)
 		s.ParentRef = &pref
 	}
+	s.ContentType = core.ContentType(contentType)
+	s.Metadata = metadata
 }
 
 func (r *DocumentRepo) CreateSection(ctx context.Context, s *core.Section) error {
@@ -99,10 +101,19 @@ func (r *DocumentRepo) CreateSection(ctx context.Context, s *core.Section) error
 		}
 	}
 
+	contentType := string(s.ContentType)
+	if contentType == "" {
+		contentType = string(core.ContentNative)
+	}
+	metadata := s.Metadata
+	if metadata == "" {
+		metadata = "{}"
+	}
+
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO sections (id, doc_id, ref, type, title, content, content_hash, parent_id, "order")
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.ID, s.DocID, s.Ref.String(), string(s.Type), s.Title, s.Content, s.ContentHash, parentID, s.Order,
+		`INSERT INTO sections (id, doc_id, ref, type, title, content, content_hash, parent_id, "order", content_type, metadata)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID, s.DocID, s.Ref.String(), string(s.Type), s.Title, s.Content, s.ContentHash, parentID, s.Order, contentType, metadata,
 	)
 	if err != nil {
 		return fmt.Errorf("insert section: %w", err)
@@ -112,7 +123,7 @@ func (r *DocumentRepo) CreateSection(ctx context.Context, s *core.Section) error
 
 func (r *DocumentRepo) ListSections(ctx context.Context, docID string) ([]*core.Section, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order"
+		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order", s.content_type, s.metadata
 		 FROM sections s
 		 LEFT JOIN sections p ON s.parent_id = p.id
 		 WHERE s.doc_id = ?
@@ -129,10 +140,11 @@ func (r *DocumentRepo) ListSections(ctx context.Context, docID string) ([]*core.
 		var refStr string
 		var typStr string
 		var parentRefStr sql.NullString
-		if err := rows.Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order); err != nil {
+		var contentType, metadata string
+		if err := rows.Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order, &contentType, &metadata); err != nil {
 			return nil, fmt.Errorf("scan section: %w", err)
 		}
-		populateSection(&s, refStr, typStr, parentRefStr)
+		populateSection(&s, refStr, typStr, parentRefStr, contentType, metadata)
 		sections = append(sections, &s)
 	}
 	return sections, rows.Err()
@@ -142,19 +154,20 @@ func (r *DocumentRepo) FindSectionByRef(ctx context.Context, docID string, ref s
 	var s core.Section
 	var refStr, typStr string
 	var parentRefStr sql.NullString
+	var contentType, metadata string
 	err := r.db.QueryRowContext(ctx,
-		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order"
+		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order", s.content_type, s.metadata
 		 FROM sections s
 		 LEFT JOIN sections p ON s.parent_id = p.id
 		 WHERE s.doc_id = ? AND s.ref = ?`, docID, ref,
-	).Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order)
+	).Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order, &contentType, &metadata)
 	if err == sql.ErrNoRows {
 		return nil, core.ErrNotFound{Entity: "section", ID: ref}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("find section by ref: %w", err)
 	}
-	populateSection(&s, refStr, typStr, parentRefStr)
+	populateSection(&s, refStr, typStr, parentRefStr, contentType, metadata)
 	return &s, nil
 }
 
@@ -162,19 +175,20 @@ func (r *DocumentRepo) FindSectionByRefGlobal(ctx context.Context, ref string) (
 	var s core.Section
 	var refStr, typStr string
 	var parentRefStr sql.NullString
+	var contentType, metadata string
 	err := r.db.QueryRowContext(ctx,
-		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order"
+		`SELECT s.id, s.doc_id, s.ref, s.type, s.title, s.content, s.content_hash, p.ref, s."order", s.content_type, s.metadata
 		 FROM sections s
 		 LEFT JOIN sections p ON s.parent_id = p.id
 		 WHERE s.ref = ? LIMIT 1`, ref,
-	).Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order)
+	).Scan(&s.ID, &s.DocID, &refStr, &typStr, &s.Title, &s.Content, &s.ContentHash, &parentRefStr, &s.Order, &contentType, &metadata)
 	if err == sql.ErrNoRows {
 		return nil, "", core.ErrNotFound{Entity: "section", ID: ref}
 	}
 	if err != nil {
 		return nil, "", fmt.Errorf("find section by ref %s: %w", ref, err)
 	}
-	populateSection(&s, refStr, typStr, parentRefStr)
+	populateSection(&s, refStr, typStr, parentRefStr, contentType, metadata)
 	return &s, s.DocID, nil
 }
 

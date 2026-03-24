@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -28,14 +29,21 @@ func newDocCmd() *cobra.Command {
 }
 
 func newDocCreateCmd() *cobra.Command {
-	var content string
+	var (
+		content    string
+		external   bool
+		system     string
+		externalID string
+		hash       string
+		metadata   string
+	)
 	cmd := &cobra.Command{
 		Use:   "create [title]",
 		Short: "Create a new document",
 		Long:  "Create a new document from a title. Content can be provided via --content flag or stdin.",
 		Example: `  remmd doc create "API Specification"
   remmd doc create "Design Doc" --content "# Overview\nFirst draft"
-  echo "# My Doc" | remmd doc create "From Stdin"`,
+  remmd doc create "Notion Page" --external --system notion --external-id page-abc --hash sha256abc`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a, err := RequireApp(cmd)
@@ -45,6 +53,40 @@ func newDocCreateCmd() *cobra.Command {
 
 			ctx := cmd.Context()
 			title := args[0]
+
+			if external {
+				if system == "" || externalID == "" || hash == "" {
+					return fmt.Errorf("--external requires --system, --external-id, and --hash")
+				}
+				if metadata != "" && !json.Valid([]byte(metadata)) {
+					return fmt.Errorf("--metadata must be valid JSON")
+				}
+
+				doc := core.NewDocument(title, cliPrincipal)
+				doc.Source = system
+				if err := a.Docs.CreateDocument(ctx, doc); err != nil {
+					return fmt.Errorf("create document: %w", err)
+				}
+
+				sec := core.Section{
+					ID:          core.NewID().String(),
+					Ref:         core.NewExternalRef(system, externalID),
+					DocID:       doc.ID,
+					Type:        core.SectionHeading,
+					Title:       title,
+					Content:     "",
+					ContentHash: hash,
+					ContentType: core.ContentExternal,
+					Metadata:    metadata,
+					Order:       0,
+				}
+				if err := a.Docs.CreateSection(ctx, &sec); err != nil {
+					return fmt.Errorf("create section: %w", err)
+				}
+
+				fmt.Fprintf(cmd.OutOrStdout(), "doc %s %q created (1 external section %s)\n", doc.ID, doc.Title, sec.Ref.String())
+				return nil
+			}
 
 			if content == "" {
 				stat, _ := cmd.InOrStdin().(interface{ Stat() (interface{ Size() int64 }, error) })
@@ -78,6 +120,11 @@ func newDocCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&content, "content", "", "Inline document content (markdown)")
+	cmd.Flags().BoolVar(&external, "external", false, "Create an external content document")
+	cmd.Flags().StringVar(&system, "system", "", "External system name (e.g. notion, figma)")
+	cmd.Flags().StringVar(&externalID, "external-id", "", "External resource ID")
+	cmd.Flags().StringVar(&hash, "hash", "", "Content hash for external section")
+	cmd.Flags().StringVar(&metadata, "metadata", "", "JSON metadata for external section")
 	return cmd
 }
 
@@ -148,6 +195,14 @@ func newShowCmd() *cobra.Command {
 				return fmt.Errorf("not found: %s", ref)
 			}
 
+			if sec.ContentType == core.ContentExternal {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s (external) system=%s hash=%s\n", sec.Ref.String(), sec.Ref.System(), sec.ContentHash)
+				if sec.Metadata != "" && sec.Metadata != "{}" {
+					fmt.Fprintf(cmd.OutOrStdout(), "  metadata: %s\n", sec.Metadata)
+				}
+				return nil
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "%s [%s] %s\n", sec.Ref.String(), sec.Type, sec.Title)
 			if sec.Content != sec.Title {
 				fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", sec.Content)
@@ -164,8 +219,9 @@ func newShowCmd() *cobra.Command {
 
 func newEditCmd() *cobra.Command {
 	var (
-		content string
-		tag     string
+		content  string
+		tag      string
+		hashFlag string
 	)
 	cmd := &cobra.Command{
 		Use:   "edit [ref]",
@@ -173,7 +229,7 @@ func newEditCmd() *cobra.Command {
 		Long:  "Update the content or tags of a section identified by its @ref.",
 		Example: `  remmd edit @a1 --content "Updated content"
   remmd edit @a1 --tag "api"
-  remmd edit @b2 --content "New text" --tag "v2"`,
+  remmd edit @ext:notion/page-abc --hash newhash`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a, err := RequireApp(cmd)
@@ -187,6 +243,19 @@ func newEditCmd() *cobra.Command {
 			sec, _, err := findSectionByRef(ctx, a.Docs, ref)
 			if err != nil {
 				return fmt.Errorf("section not found: %s", ref)
+			}
+
+			if sec.ContentType == core.ContentExternal {
+				if content != "" {
+					return fmt.Errorf("cannot set body content on external section")
+				}
+				if hashFlag != "" {
+					if err := a.Docs.UpdateSectionContent(ctx, sec.ID, "", hashFlag); err != nil {
+						return fmt.Errorf("update hash: %w", err)
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "%s hash updated to %q\n", ref, hashFlag)
+					return nil
+				}
 			}
 
 			if content != "" {
@@ -204,7 +273,7 @@ func newEditCmd() *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s tagged %q\n", ref, tag)
 			}
 
-			if content == "" && tag == "" {
+			if content == "" && tag == "" && hashFlag == "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s (no changes)\n", ref)
 			}
 
@@ -213,6 +282,7 @@ func newEditCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&content, "content", "", "New section content")
 	cmd.Flags().StringVar(&tag, "tag", "", "Tag to apply to section")
+	cmd.Flags().StringVar(&hashFlag, "hash", "", "New content hash (for external sections)")
 	return cmd
 }
 
