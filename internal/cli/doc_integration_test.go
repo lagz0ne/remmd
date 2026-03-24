@@ -536,3 +536,309 @@ func TestLinkProposeWithExternalRef(t *testing.T) {
 		t.Errorf("propose output missing external ref: %s", proposeOut)
 	}
 }
+
+func TestEdit_TransitionsLinksToStale(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: Create two docs with one section each so refs are distinct.
+	// Doc A → @a1, Doc B → @b2
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Doc A", "--content", "# Section A"},
+		[]string{"doc", "create", "Doc B", "--content", "# Section B"},
+	)
+	if err != nil {
+		t.Fatalf("create docs: %v", err)
+	}
+	refA := extractFirstRef(t, outputs[0])
+	refB := extractFirstRef(t, outputs[1])
+
+	// Step 2: Propose a link between the two sections
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "propose", refA, "--agrees-with", refB, "--rationale", "same API"},
+	)
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	linkID := extractLinkIDFromPropose(t, outputs2[0])
+
+	// Step 3: Approve → aligned
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"link", "approve", linkID},
+	)
+	if err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+
+	// Verify aligned
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "list"},
+	)
+	if err != nil {
+		t.Fatalf("list after approve: %v", err)
+	}
+	if !strings.Contains(outputs3[0], "aligned") {
+		t.Fatalf("link should be aligned after approve, got: %s", outputs3[0])
+	}
+
+	// Step 4: Edit section A → should trigger stale transition
+	outputs4, err := execCmdChain2(t, tmpDB,
+		[]string{"edit", refA, "--content", "Changed content"},
+	)
+	if err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	editOut := outputs4[0]
+	if !strings.Contains(editOut, "content updated") {
+		t.Errorf("edit output missing 'content updated': %s", editOut)
+	}
+	if !strings.Contains(editOut, "1 link(s) marked stale") {
+		t.Errorf("edit output should report stale links: %s", editOut)
+	}
+
+	// Step 5: Verify link is now stale
+	outputs5, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "list"},
+	)
+	if err != nil {
+		t.Fatalf("list after edit: %v", err)
+	}
+	if !strings.Contains(outputs5[0], "stale") {
+		t.Errorf("link should be stale after edit, got: %s", outputs5[0])
+	}
+}
+
+func TestEdit_NoStaleTransition_WhenNotAligned(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: Create two docs
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Doc A", "--content", "# Section A"},
+		[]string{"doc", "create", "Doc B", "--content", "# Section B"},
+	)
+	if err != nil {
+		t.Fatalf("create docs: %v", err)
+	}
+	refA := extractFirstRef(t, outputs[0])
+	refB := extractFirstRef(t, outputs[1])
+
+	// Step 2: Propose a link but do NOT approve — stays pending
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"link", "propose", refA, "--implements", refB, "--rationale", "impl"},
+	)
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+
+	// Step 3: Edit section A — link should stay pending (not transition to stale)
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"edit", refA, "--content", "New content"},
+	)
+	if err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+
+	// Step 4: Verify link is still pending
+	outputs4, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "list"},
+	)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if !strings.Contains(outputs4[0], "pending") {
+		t.Errorf("link should remain pending, got: %s", outputs4[0])
+	}
+	if strings.Contains(outputs4[0], "stale") {
+		t.Errorf("link should NOT be stale (was pending), got: %s", outputs4[0])
+	}
+}
+
+func TestEdit_ExternalHashUpdate_TransitionsLinksToStale(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: Create a native doc and an external doc
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Native", "--content", "# Spec"},
+	)
+	if err != nil {
+		t.Fatalf("create native: %v", err)
+	}
+	nativeRef := extractFirstRef(t, outputs[0])
+
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "External",
+			"--external", "--system", "notion", "--external-id", "page1", "--hash", "hash1"},
+	)
+	if err != nil {
+		t.Fatalf("create external: %v", err)
+	}
+
+	// Step 2: Propose and approve link
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "propose", nativeRef, "--implements", "@ext:notion/page1", "--rationale", "covers"},
+	)
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	linkID := extractLinkIDFromPropose(t, outputs2[0])
+
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"link", "approve", linkID},
+	)
+	if err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+
+	// Step 3: Update external hash → should transition to stale
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"edit", "@ext:notion/page1", "--hash", "hash2"},
+	)
+	if err != nil {
+		t.Fatalf("edit external hash: %v", err)
+	}
+	if !strings.Contains(outputs3[0], "1 link(s) marked stale") {
+		t.Errorf("external hash edit should report stale links: %s", outputs3[0])
+	}
+
+	// Step 4: Verify stale
+	outputs4, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "list"},
+	)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if !strings.Contains(outputs4[0], "stale") {
+		t.Errorf("link should be stale after external hash update, got: %s", outputs4[0])
+	}
+}
+
+func TestImpact_ShowsImpactedLinks(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Create two docs with distinct refs
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Doc A", "--content", "# Section A"},
+		[]string{"doc", "create", "Doc B", "--content", "# Section B"},
+	)
+	if err != nil {
+		t.Fatalf("create docs: %v", err)
+	}
+	refA := extractFirstRef(t, outputs[0])
+	refB := extractFirstRef(t, outputs[1])
+
+	// Propose and approve a link
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"link", "propose", refA, "--agrees-with", refB, "--rationale", "aligned"},
+	)
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	linkID := extractLinkIDFromPropose(t, outputs2[0])
+
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"link", "approve", linkID},
+	)
+	if err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+
+	// Run impact on refA — should show the link
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"impact", refA},
+	)
+	if err != nil {
+		t.Fatalf("impact: %v", err)
+	}
+	impactOut := outputs3[0]
+	if !strings.Contains(impactOut, "1 link(s) impacted") {
+		t.Errorf("impact should show 1 impacted link, got: %s", impactOut)
+	}
+	if !strings.Contains(impactOut, "agrees_with") {
+		t.Errorf("impact should show relationship type, got: %s", impactOut)
+	}
+}
+
+func TestImpact_NoLinks(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Create a doc with no links
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Lonely Doc", "--content", "# Alone"},
+	)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	ref := extractFirstRef(t, outputs[0])
+
+	// Run impact — should show no impact
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"impact", ref},
+	)
+	if err != nil {
+		t.Fatalf("impact: %v", err)
+	}
+	if !strings.Contains(outputs2[0], "no impact") {
+		t.Errorf("impact should show no impact, got: %s", outputs2[0])
+	}
+}
+
+func TestDocCreate_GlobalRefUniqueness(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	// Step 1: Create doc A with 2 sections → should get @a1, @b2
+	// Step 2: Create doc B with 1 section  → should get @c3 (NOT @a1)
+	// Step 3: Verify show @c3 resolves to doc B's section
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Doc A", "--content", "# Sec One\n# Sec Two"},
+		[]string{"doc", "create", "Doc B", "--content", "# Sec Three"},
+	)
+	if err != nil {
+		t.Fatalf("chain error: %v", err)
+	}
+
+	createA := outputs[0]
+	createB := outputs[1]
+
+	// Doc A should have @a1 and @b2
+	if !strings.Contains(createA, "@a1") {
+		t.Errorf("doc A missing @a1: %s", createA)
+	}
+	if !strings.Contains(createA, "@b2") {
+		t.Errorf("doc A missing @b2: %s", createA)
+	}
+
+	// Doc B should have @c3 (global counter continues from doc A)
+	if !strings.Contains(createB, "@c3") {
+		t.Errorf("doc B should have @c3 (global ref), got: %s", createB)
+	}
+
+	// @c3 should NOT appear in doc A
+	if strings.Contains(createA, "@c3") {
+		t.Errorf("doc A should NOT have @c3: %s", createA)
+	}
+
+	// @a1 should NOT appear in doc B
+	if strings.Contains(createB, "@a1") {
+		t.Errorf("doc B should NOT have @a1 (collision!): %s", createB)
+	}
+
+	// Verify show @c3 resolves to doc B's section
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"show", "@c3"},
+	)
+	if err != nil {
+		t.Fatalf("show @c3 error: %v", err)
+	}
+	showOut := outputs2[0]
+	if !strings.Contains(showOut, "@c3") {
+		t.Errorf("show output missing @c3: %s", showOut)
+	}
+	if !strings.Contains(showOut, "Sec Three") {
+		t.Errorf("show @c3 should resolve to 'Sec Three': %s", showOut)
+	}
+}

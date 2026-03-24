@@ -32,4 +32,6 @@ type DocumentRepository interface {
 	AddTag(ctx context.Context, sectionID, tag string) error
 	RemoveTag(ctx context.Context, sectionID, tag string) error
 	GetTags(ctx context.Context, sectionID string) ([]string, error)
+
+	NextRefSeq(ctx context.Context, count int) (int, error) // reserves `count` sequential ref numbers, returns the first
 }

@@ -16,14 +16,20 @@ type listEntry struct {
 
 // Parse parses a markdown document into a flat list of Sections with parent
 // references set based on nesting (heading levels, list indentation).
-func Parse(docID string, markdown string) []Section {
+// startSeq is the first sequence number to assign. Pass 0 for default behavior
+// (starts at 1, producing @a1, @b2, ...).
+func Parse(docID string, markdown string, startSeq int) []Section {
 	if strings.TrimSpace(markdown) == "" {
 		return nil
 	}
 
+	if startSeq <= 0 {
+		startSeq = 1
+	}
+
 	lines := strings.Split(markdown, "\n")
 	var sections []Section
-	seq := 0
+	seq := startSeq - 1
 
 	var headingStack []headingEntry
 	var listStack []listEntry
@@ -288,6 +294,35 @@ func parseTableRow(trimmed string) string {
 		cells = append(cells, strings.TrimSpace(p))
 	}
 	return strings.Join(cells, " | ")
+}
+
+// RebaseRefs shifts all section refs by an offset so that the first section
+// starts at newStart instead of its current seq. ParentRefs are updated to match.
+func RebaseRefs(sections []Section, newStart int) {
+	if len(sections) == 0 {
+		return
+	}
+	offset := newStart - sections[0].Ref.Seq
+	if offset == 0 {
+		return
+	}
+	// Build old→new ref mapping
+	oldToNew := make(map[string]Ref, len(sections))
+	for i := range sections {
+		oldRef := sections[i].Ref
+		newSeq := oldRef.Seq + offset
+		newRef := NewRef(sections[i].DocID, newSeq)
+		oldToNew[oldRef.String()] = newRef
+		sections[i].Ref = newRef
+	}
+	// Fix parent refs
+	for i := range sections {
+		if sections[i].ParentRef != nil {
+			if nr, ok := oldToNew[sections[i].ParentRef.String()]; ok {
+				sections[i].ParentRef = &nr
+			}
+		}
+	}
 }
 
 // findListParent finds the nearest list parent with indent less than the given indent.

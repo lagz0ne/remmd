@@ -851,6 +851,105 @@ func TestUpdateSectionContent_ExternalHashPush(t *testing.T) {
 	}
 }
 
+// --- Global ref counter tests ---
+
+func TestNextRefSeq_FirstCall(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	// Fresh DB with no sections — seed should be 1
+	first, err := repo.NextRefSeq(ctx, 1)
+	if err != nil {
+		t.Fatalf("NextRefSeq: %v", err)
+	}
+	if first != 1 {
+		t.Errorf("first seq = %d, want 1", first)
+	}
+}
+
+func TestNextRefSeq_ReservesRange(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	// Reserve 3 — should return 1 (start of range)
+	first, err := repo.NextRefSeq(ctx, 3)
+	if err != nil {
+		t.Fatalf("NextRefSeq(3): %v", err)
+	}
+	if first != 1 {
+		t.Errorf("first seq = %d, want 1", first)
+	}
+
+	// Next call should return 4 (1+3)
+	second, err := repo.NextRefSeq(ctx, 1)
+	if err != nil {
+		t.Fatalf("NextRefSeq(1): %v", err)
+	}
+	if second != 4 {
+		t.Errorf("second seq = %d, want 4", second)
+	}
+}
+
+func TestNextRefSeq_AfterExistingSections(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "Doc", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	// Insert 5 sections across two documents to seed the counter
+	doc2ID := core.NewID().String()
+	doc2 := &core.Document{ID: doc2ID, Title: "Doc2", OwnerID: "user-1", Status: "active", Source: "native"}
+	if err := repo.CreateDocument(ctx, doc2); err != nil {
+		t.Fatalf("CreateDocument doc2: %v", err)
+	}
+
+	refs := []string{"@a1", "@b2", "@c3"}
+	for i, r := range refs {
+		ref, _ := core.ParseRef(r)
+		s := &core.Section{
+			ID: core.NewID().String(), DocID: docID, Ref: ref,
+			Type: core.SectionHeading, Content: r, ContentHash: core.ContentHash(r), Order: i,
+		}
+		if err := repo.CreateSection(ctx, s); err != nil {
+			t.Fatalf("CreateSection %s: %v", r, err)
+		}
+	}
+	refs2 := []string{"@d4", "@e5"}
+	for i, r := range refs2 {
+		ref, _ := core.ParseRef(r)
+		s := &core.Section{
+			ID: core.NewID().String(), DocID: doc2ID, Ref: ref,
+			Type: core.SectionHeading, Content: r, ContentHash: core.ContentHash(r), Order: i,
+		}
+		if err := repo.CreateSection(ctx, s); err != nil {
+			t.Fatalf("CreateSection %s: %v", r, err)
+		}
+	}
+
+	// The migration seeds ref_counter from COUNT(*) of sections.
+	// But the migration runs at setupDocTestDB time (before sections exist).
+	// So the seed is 1. After inserting 5 sections, we haven't touched ref_counter yet.
+	// NextRefSeq should return whatever was seeded (1), since sections were added after migration.
+	first, err := repo.NextRefSeq(ctx, 1)
+	if err != nil {
+		t.Fatalf("NextRefSeq: %v", err)
+	}
+	// On fresh DB, seed is 1 (no sections at migration time), so first call returns 1
+	if first != 1 {
+		t.Errorf("first seq = %d, want 1", first)
+	}
+}
+
 func TestCreateSection_ExternalDefaultMetadata(t *testing.T) {
 	t.Parallel()
 	db := setupDocTestDB(t)

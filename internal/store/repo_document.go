@@ -287,6 +287,30 @@ func (r *DocumentRepo) RemoveTag(ctx context.Context, sectionID, tag string) err
 	return nil
 }
 
+func (r *DocumentRepo) NextRefSeq(ctx context.Context, count int) (int, error) {
+	var first int
+	err := WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var seq int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT next_seq FROM ref_counter WHERE id = 1`,
+		).Scan(&seq); err != nil {
+			return fmt.Errorf("read ref_counter: %w", err)
+		}
+		first = seq
+		_, err := tx.ExecContext(ctx,
+			`UPDATE ref_counter SET next_seq = next_seq + ? WHERE id = 1`, count,
+		)
+		if err != nil {
+			return fmt.Errorf("update ref_counter: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return first, nil
+}
+
 func (r *DocumentRepo) GetTags(ctx context.Context, sectionID string) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT tag FROM tags WHERE section_id = ? ORDER BY tag`, sectionID,

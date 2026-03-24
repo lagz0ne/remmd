@@ -23,7 +23,7 @@ func TestImpactCmd_Exists(t *testing.T) {
 	}
 }
 
-func TestImpactCmd_RunsWithRef(t *testing.T) {
+func TestImpactCmd_NonExistentRef(t *testing.T) {
 	t.Parallel()
 	cmd := cli.NewRootCmd()
 	buf := new(bytes.Buffer)
@@ -31,12 +31,12 @@ func TestImpactCmd_RunsWithRef(t *testing.T) {
 	cmd.SetErr(buf)
 	cmd.SetArgs([]string{"--db", ":memory:", "impact", "@a1"})
 
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("impact command error: %v", err)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for non-existent ref")
 	}
-	out := buf.String()
-	if !strings.Contains(out, "@a1") {
-		t.Errorf("output should mention ref @a1, got: %s", out)
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
 	}
 }
 

@@ -34,7 +34,7 @@ func createTestSection(t *testing.T, db *sql.DB, docTitle, ref, content string) 
 		t.Fatalf("CreateDocument: %v", err)
 	}
 
-	sections := core.Parse(doc.ID, content)
+	sections := core.Parse(doc.ID, content, 0)
 	if len(sections) == 0 {
 		t.Fatalf("no sections parsed from content")
 	}

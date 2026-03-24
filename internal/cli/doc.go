@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/lagz0ne/remmd/internal/app"
 	"github.com/lagz0ne/remmd/internal/core"
 	"github.com/spf13/cobra"
 )
@@ -106,7 +107,14 @@ func newDocCreateCmd() *cobra.Command {
 
 			var sections []core.Section
 			if content != "" {
-				sections = core.Parse(doc.ID, content)
+				sections = core.Parse(doc.ID, content, 0)
+				if len(sections) > 0 {
+					startSeq, err := a.Docs.NextRefSeq(ctx, len(sections))
+					if err != nil {
+						return fmt.Errorf("reserve refs: %w", err)
+					}
+					core.RebaseRefs(sections, startSeq)
+				}
 				for i := range sections {
 					if err := a.Docs.CreateSection(ctx, &sections[i]); err != nil {
 						return fmt.Errorf("create section: %w", err)
@@ -254,6 +262,7 @@ func newEditCmd() *cobra.Command {
 						return fmt.Errorf("update hash: %w", err)
 					}
 					fmt.Fprintf(cmd.OutOrStdout(), "%s hash updated to %q\n", ref, hashFlag)
+					walkStaleLinks(ctx, cmd, a, sec.ID, ref)
 					return nil
 				}
 			}
@@ -264,6 +273,7 @@ func newEditCmd() *cobra.Command {
 					return fmt.Errorf("update content: %w", err)
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "%s content updated (%d bytes)\n", ref, len(content))
+				walkStaleLinks(ctx, cmd, a, sec.ID, ref)
 			}
 
 			if tag != "" {
@@ -284,6 +294,29 @@ func newEditCmd() *cobra.Command {
 	cmd.Flags().StringVar(&tag, "tag", "", "Tag to apply to section")
 	cmd.Flags().StringVar(&hashFlag, "hash", "", "New content hash (for external sections)")
 	return cmd
+}
+
+// walkStaleLinks transitions aligned links to stale after a section change.
+func walkStaleLinks(ctx context.Context, cmd *cobra.Command, a *app.App, sectionID, ref string) {
+	walker := newWalker(a.Links)
+	impacted, walkErr := walker.WalkFromSection(ctx, sectionID)
+	if walkErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: graph walk failed: %v\n", walkErr)
+		return
+	}
+	staleCount := 0
+	for _, il := range impacted {
+		if il.State == string(core.LinkAligned) {
+			if err := a.Links.UpdateLinkState(ctx, il.LinkID, core.LinkStale); err == nil {
+				staleCount++
+				_ = a.Links.AddThreadEntry(ctx, il.LinkID, core.EntrySystem, cliPrincipal,
+					fmt.Sprintf("content changed on %s — link marked stale", ref))
+			}
+		}
+	}
+	if staleCount > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "%d link(s) marked stale\n", staleCount)
+	}
 }
 
 func newDeleteCmd() *cobra.Command {

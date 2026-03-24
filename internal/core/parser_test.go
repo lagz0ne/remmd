@@ -6,7 +6,7 @@ import (
 
 func TestParse_Headings(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "# A\n## B\n## C")
+	sections := Parse("doc1", "# A\n## B\n## C", 0)
 	if len(sections) != 3 {
 		t.Fatalf("expected 3 sections, got %d", len(sections))
 	}
@@ -17,7 +17,7 @@ func TestParse_Headings(t *testing.T) {
 
 func TestParse_NestedHeadings(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "# A\n## B\n### C\n## D")
+	sections := Parse("doc1", "# A\n## B\n### C\n## D", 0)
 	if len(sections) != 4 {
 		t.Fatalf("expected 4 sections, got %d", len(sections))
 	}
@@ -29,7 +29,7 @@ func TestParse_NestedHeadings(t *testing.T) {
 
 func TestParse_ListItems(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "# Heading\n- item1\n- item2")
+	sections := Parse("doc1", "# Heading\n- item1\n- item2", 0)
 	if len(sections) != 3 {
 		t.Fatalf("expected 3 sections, got %d", len(sections))
 	}
@@ -40,7 +40,7 @@ func TestParse_ListItems(t *testing.T) {
 
 func TestParse_NestedLists(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "- parent\n  - child")
+	sections := Parse("doc1", "- parent\n  - child", 0)
 	if len(sections) != 2 {
 		t.Fatalf("expected 2 sections, got %d", len(sections))
 	}
@@ -50,7 +50,7 @@ func TestParse_NestedLists(t *testing.T) {
 
 func TestParse_Checklists(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "- [ ] todo\n- [x] done")
+	sections := Parse("doc1", "- [ ] todo\n- [x] done", 0)
 	if len(sections) != 2 {
 		t.Fatalf("expected 2 sections, got %d", len(sections))
 	}
@@ -67,7 +67,7 @@ func TestParse_Checklists(t *testing.T) {
 func TestParse_TableRows(t *testing.T) {
 	t.Parallel()
 	md := "| Name | Status |\n|---|---|\n| Auth | Done |\n| Pay | WIP |"
-	sections := Parse("doc1", md)
+	sections := Parse("doc1", md, 0)
 	if len(sections) != 2 {
 		t.Fatalf("expected 2 table-row sections, got %d", len(sections))
 	}
@@ -78,7 +78,7 @@ func TestParse_TableRows(t *testing.T) {
 func TestParse_CodeBlock(t *testing.T) {
 	t.Parallel()
 	md := "```go\nfunc main(){}\n```"
-	sections := Parse("doc1", md)
+	sections := Parse("doc1", md, 0)
 	if len(sections) != 1 {
 		t.Fatalf("expected 1 section, got %d", len(sections))
 	}
@@ -90,7 +90,7 @@ func TestParse_CodeBlock(t *testing.T) {
 
 func TestParse_EmptyDocument(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "")
+	sections := Parse("doc1", "", 0)
 	if len(sections) != 0 {
 		t.Fatalf("expected 0 sections, got %d", len(sections))
 	}
@@ -98,7 +98,7 @@ func TestParse_EmptyDocument(t *testing.T) {
 
 func TestParse_SingleHeading(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "# Title")
+	sections := Parse("doc1", "# Title", 0)
 	if len(sections) != 1 {
 		t.Fatalf("expected 1 section, got %d", len(sections))
 	}
@@ -108,7 +108,7 @@ func TestParse_SingleHeading(t *testing.T) {
 func TestParse_MixedContent(t *testing.T) {
 	t.Parallel()
 	md := "# Overview\n- item\n- [ ] check\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```py\nprint(1)\n```"
-	sections := Parse("doc1", md)
+	sections := Parse("doc1", md, 0)
 	if len(sections) < 5 {
 		t.Fatalf("expected at least 5 sections, got %d", len(sections))
 	}
@@ -123,7 +123,7 @@ func TestParse_MixedContent(t *testing.T) {
 
 func TestParse_SectionsHaveRequiredFields(t *testing.T) {
 	t.Parallel()
-	sections := Parse("doc1", "# Hello")
+	sections := Parse("doc1", "# Hello", 0)
 	s := sections[0]
 	if s.Ref.String() == "" {
 		t.Error("Ref should be auto-assigned")
@@ -136,6 +136,42 @@ func TestParse_SectionsHaveRequiredFields(t *testing.T) {
 	}
 	if s.Order != 0 {
 		t.Errorf("first section Order should be 0, got %d", s.Order)
+	}
+}
+
+func TestParse_StartSeqOffset(t *testing.T) {
+	t.Parallel()
+	sections := Parse("doc1", "# Hello\n# World", 5)
+	if len(sections) != 2 {
+		t.Fatalf("expected 2 sections, got %d", len(sections))
+	}
+	// startSeq=5 → first section seq=5 → @e5, second seq=6 → @f6
+	if got := sections[0].Ref.String(); got != "@e5" {
+		t.Errorf("section 0 ref: expected @e5, got %s", got)
+	}
+	if got := sections[0].Ref.Seq; got != 5 {
+		t.Errorf("section 0 seq: expected 5, got %d", got)
+	}
+	if got := sections[1].Ref.String(); got != "@f6" {
+		t.Errorf("section 1 ref: expected @f6, got %s", got)
+	}
+	if got := sections[1].Ref.Seq; got != 6 {
+		t.Errorf("section 1 seq: expected 6, got %d", got)
+	}
+}
+
+func TestParse_StartSeqZero_DefaultBehavior(t *testing.T) {
+	t.Parallel()
+	sections := Parse("doc1", "# Hello", 0)
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+	// startSeq=0 → backward compat → first section seq=1 → @a1
+	if got := sections[0].Ref.String(); got != "@a1" {
+		t.Errorf("expected @a1, got %s", got)
+	}
+	if got := sections[0].Ref.Seq; got != 1 {
+		t.Errorf("expected seq 1, got %d", got)
 	}
 }
 
