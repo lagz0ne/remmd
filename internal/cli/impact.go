@@ -9,10 +9,10 @@ import (
 func newImpactCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "impact [ref]",
-		Short: "Show blast radius of a section change",
-		Long:  "Analyze which agreements are impacted when a section changes. Shows counterparties who need to review.",
-		Example: `  remmd impact @a1
-  remmd impact @b2`,
+		Short: "Show blast radius before changing content",
+		Long:  "Walk the graph from a section to find all impacted links and counterparties. Run this before editing to see who will need to review.",
+		Example: `  remmd impact @s1              # who's affected if I change this?
+  remmd impact @ext:jira/ENG-42  # external section impact`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ref := args[0]

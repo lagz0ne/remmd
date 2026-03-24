@@ -59,12 +59,31 @@ func NewRootCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "remmd",
-		Short: "Canvas-oriented document platform with verification agreements",
-		Long: `remmd is a document platform where verification agreements between
-sections create a trust network. When content changes, linked sections
-go SUSPECT, requiring human review.`,
-		Example: `  remmd health          Check service health
-  remmd --help          Show this help`,
+		Short: "Document agreements through verified links",
+		Long: `remmd — document agreements through verified links
+
+Create documents, link sections across them, and track trust.
+Content edits are immediate. Links require bilateral approval.
+When linked content changes, the graph walks and counterparties review.`,
+		Example: `  # Create a document with sections (auto @refs)
+  remmd doc create "API Spec" --content "# Auth\nJWT bearer tokens\n# Errors\nStructured JSON"
+
+  # View sections and their @refs
+  remmd show @s1
+
+  # Propose a link between sections across documents
+  remmd link propose @s1 --implements @s2 --rationale "code implements auth spec"
+
+  # Both sides approve → link becomes ALIGNED
+  remmd link approve <link-id>
+
+  # Edit content → see who's impacted → reaffirm
+  remmd edit @s1 --content "Updated auth flow"
+  remmd impact @s1
+  remmd link reaffirm <link-id>
+
+  # Subscribe to tag notifications
+  remmd tag subscribe @s1 --tag payment`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -98,14 +117,29 @@ go SUSPECT, requiring human review.`,
 	cmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringVar(&dbPath, "db", defaultDBPath(), "Database file path")
 
-	cmd.AddCommand(newHealthCmd())
-	cmd.AddCommand(newDocCmd())
-	cmd.AddCommand(newShowCmd())
-	cmd.AddCommand(newEditCmd())
-	cmd.AddCommand(newDeleteCmd())
-	cmd.AddCommand(newImpactCmd())
-	cmd.AddCommand(newLinkGroupCmd())
-	cmd.AddCommand(newTagCmd())
+	contentGroup := &cobra.Group{ID: "content", Title: "Content:"}
+	linksGroup := &cobra.Group{ID: "links", Title: "Links:"}
+	subscriptionsGroup := &cobra.Group{ID: "subscriptions", Title: "Subscriptions:"}
+	systemGroup := &cobra.Group{ID: "system", Title: "System:"}
+
+	cmd.AddGroup(contentGroup, linksGroup, subscriptionsGroup, systemGroup)
+
+	addToGroup := func(group *cobra.Group, c *cobra.Command) {
+		c.GroupID = group.ID
+		cmd.AddCommand(c)
+	}
+
+	addToGroup(contentGroup, newDocCmd())
+	addToGroup(contentGroup, newShowCmd())
+	addToGroup(contentGroup, newEditCmd())
+	addToGroup(contentGroup, newDeleteCmd())
+
+	addToGroup(linksGroup, newLinkGroupCmd())
+	addToGroup(linksGroup, newImpactCmd())
+
+	addToGroup(subscriptionsGroup, newTagCmd())
+
+	addToGroup(systemGroup, newHealthCmd())
 
 	return cmd
 }

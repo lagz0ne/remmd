@@ -10,8 +10,9 @@ import (
 func newTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tag",
-		Short: "Manage tag subscriptions",
-		Long:  "Subscribe sections to tags, list subscriptions, and dismiss notifications.",
+		Short: "Subscribe to tag notifications across documents",
+		Long: `Standing notification requests — "tell me when content with this tag appears."
+Subscriptions create notifications, not links. You decide whether to propose a link.`,
 	}
 
 	cmd.AddCommand(newTagSubscribeCmd())

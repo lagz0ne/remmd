@@ -20,8 +20,8 @@ func findSectionByRef(ctx context.Context, docs core.DocumentRepository, refStr 
 func newDocCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doc",
-		Short: "Manage documents",
-		Long:  "Create, list, and manage canvas documents.",
+		Short: "Create and list documents",
+		Long:  "Create documents from content (markdown parsed into sections with auto @refs), list all documents.",
 	}
 	cmd.AddCommand(newDocCreateCmd())
 	cmd.AddCommand(newDocListCmd())

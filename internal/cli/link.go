@@ -11,8 +11,14 @@ import (
 func newLinkGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
-		Short: "Manage verification agreements between sections",
-		Long:  "Propose, approve, comment on, list, and manage links between document sections.",
+		Short: "Propose, approve, and manage links between sections",
+		Long: `Manage bilateral agreements between document sections.
+
+  propose     Open a link (like opening a PR)
+  approve     Approve from your side → both sides = ALIGNED
+  reaffirm    After your content changes, reaffirm or withdraw
+  comment     Add to the link's review thread
+  list        Show links (--stale, --mine)`,
 	}
 
 	cmd.AddCommand(newLinkProposeCmd())
