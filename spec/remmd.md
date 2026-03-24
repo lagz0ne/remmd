@@ -193,21 +193,9 @@ Bulk reaffirm is supported when multiple links are impacted by one edit.
 
 ### 5.4 Link States
 
-Derived from approval status, not explicitly set:
+Derived from approval status, not explicitly set: `pending` (not yet approved by both sides) → `aligned` (both approved against current snapshots) → `stale` (content changed, waiting on counterparty). Also: `broken` (section deleted or became unresolvable), `archived` (explicitly closed by a participant). No "disputed" state — rejection is just "request changes" and iterate.
 
-| State | Meaning |
-|---|---|
-| `pending` | Proposed, not yet approved by both sides |
-| `aligned` | Both sides approved against current snapshots |
-| `stale` | Content changed since last aligned — waiting on counterparty |
-| `broken` | A section was deleted or became unresolvable |
-| `archived` | Explicitly closed by a participant |
-
-No "disputed" state. A rejection is just "request changes" — the thread stays open, the author iterates, the counterparty re-reviews. Same as a PR.
-
-### 5.5 Stale-Context Guard
-
-If the underlying section snapshots change between when a reviewer loads the review workspace and when they submit approval, the approval MUST be rejected. The reviewer sees a stale-context notice and must refresh before re-approving. This prevents approving content the reviewer has not actually seen.
+**Stale-context guard:** If section snapshots change between review-load and approve-submit, the approval MUST be rejected. Reviewer must refresh before re-approving.
 
 ---
 
