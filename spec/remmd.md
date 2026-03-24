@@ -184,32 +184,11 @@ Changes propagate as causal chains: PM edits `@r2` → Eng link goes STALE → E
 
 ---
 
-## 7. Hash Updates & External Changes
+## 7. Hash Updates
 
-Content hashes reach remmd through two channels:
+Content hashes reach remmd through two channels: **built-in** (remmd computes hash on edit for native content) and **push** (external system calls CLI/API with `{ref, new_hash, ?diff}`). No special path for external vs internal — the graph doesn't care how the hash arrived.
 
-| Channel | How | When |
-|---|---|---|
-| Built-in | remmd computes hash on edit | Native content |
-| Push | External system calls CLI/API with new hash | External content |
-
-Push is the lightest integration — the external system just sends `{ref, new_hash, ?diff}`. No special infrastructure required.
-
-### 7.1 External Updates
-
-When an external source changes:
-
-- New hash is recorded, creating a new version of the section
-- Graph walks and thread updates follow the standard mechanism
-- No special path for external vs internal changes — the graph doesn't care how the hash arrived
-
-### 7.2 Bulk Import
-
-A service principal MAY import multiple documents at once and propose links across the imported content and existing graph in the same operation.
-
-- Bulk import creates documents + sections + draft link proposals
-- Each link still requires human bilateral approval
-- Nothing is trusted until approved
+Bulk import: a service principal MAY import multiple documents at once and propose links. Each link still requires human bilateral approval — nothing is trusted until approved.
 
 ---
 
