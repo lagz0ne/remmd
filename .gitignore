@@ -1,4 +1,17 @@
-bin/
+# Build output
+/bin/
+/remmd
+/remmd.exe
+
+# npm — Go binary downloaded by postinstall (shim is tracked)
+npm/bin/remmd-bin
+npm/bin/remmd-bin.exe
+npm/node_modules/
+
+# Database files
 *.db
 !.c3/c3.db
 *.sqlite
+
+# POC workspace
+/poc/
