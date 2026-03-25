@@ -50,7 +50,7 @@ function download(url) {
 async function main() {
   const binaryName = getBinaryName();
   const url = `https://github.com/lagz0ne/remmd/releases/download/v${VERSION}/${binaryName}`;
-  const dest = path.join(BIN_DIR, process.platform === "win32" ? "remmd.exe" : "remmd");
+  const dest = path.join(BIN_DIR, process.platform === "win32" ? "remmd-bin.exe" : "remmd-bin");
 
   console.log(`Downloading remmd v${VERSION} for ${process.platform}-${process.arch}...`);
 

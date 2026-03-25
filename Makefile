@@ -1,7 +1,7 @@
 .PHONY: build test race lint clean health
 
 build:
-	go build -o bin/remmd ./cmd/remmd/
+	go build -o bin/remmd-bin ./cmd/remmd/
 
 test:
 	go test -count=1 -parallel=4 ./...
@@ -16,4 +16,4 @@ clean:
 	rm -rf bin/
 
 health: build
-	./bin/remmd health
+	./bin/remmd-bin health
