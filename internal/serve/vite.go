@@ -14,7 +14,7 @@ import (
 
 // runViteDev spawns the Vite dev server as a subprocess and blocks until it exits.
 // It polls TCP readiness with a 30s timeout before returning control.
-func runViteDev(ctx context.Context, dir string, port int) error {
+func runViteDev(ctx context.Context, dir string, port int, natsWSPort int) error {
 	portStr := fmt.Sprintf("%d", port)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	args := []string{"--port", portStr, "--host", "127.0.0.1", "--strictPort"}
@@ -28,6 +28,7 @@ func runViteDev(ctx context.Context, dir string, port int) error {
 	}
 
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), fmt.Sprintf("VITE_NATS_WS_PORT=%d", natsWSPort))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

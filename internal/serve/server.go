@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -35,7 +36,7 @@ func WithPort(p int) Option {
 	return func(s *Server) { s.port = p }
 }
 
-// WithNATSWSPort sets the NATS WebSocket port (default 4313).
+// WithNATSWSPort sets the NATS WebSocket port (default 0 = auto).
 func WithNATSWSPort(p int) Option {
 	return func(s *Server) { s.natsWSPort = p }
 }
@@ -43,10 +44,9 @@ func WithNATSWSPort(p int) Option {
 // New creates a Server. Call Start to run it.
 func New(application *app.App, viteDir string, opts ...Option) (*Server, error) {
 	s := &Server{
-		app:        application,
-		viteDir:    viteDir,
-		port:       4312,
-		natsWSPort: 4313,
+		app:     application,
+		viteDir: viteDir,
+		port:    4312,
 	}
 	for _, o := range opts {
 		o(s)
@@ -56,7 +56,13 @@ func New(application *app.App, viteDir string, opts ...Option) (*Server, error) 
 
 // Start runs the server and blocks until ctx is cancelled or a fatal error occurs.
 func (s *Server) Start(ctx context.Context) error {
-	// 1. Embedded NATS
+	// 1. Find free ports for NATS WS and Vite (if not explicitly set)
+	if s.natsWSPort == 0 {
+		s.natsWSPort = freePort()
+	}
+	vitePort := freePort()
+
+	// 2. Embedded NATS
 	storeDir, err := os.MkdirTemp("", "remmd-nats")
 	if err != nil {
 		return fmt.Errorf("nats tmpdir: %w", err)
@@ -85,7 +91,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.ns = ns
 	slog.Info("nats embedded started", "ws_port", s.natsWSPort)
 
-	// 2. In-process NATS client
+	// 3. In-process NATS client
 	nc, err := nats.Connect("", nats.InProcessServer(ns))
 	if err != nil {
 		ns.Shutdown()
@@ -93,18 +99,17 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	s.nc = nc
 
-	// 3. Register NATS handlers
+	// 4. Register NATS handlers
 	registerHandlers(nc, s.app)
 
-	// 4. Spawn Vite dev server
-	vitePort := 5173
+	// 5. Spawn Vite dev server (pass NATS WS port via env)
 	go func() {
-		if err := runViteDev(ctx, s.viteDir, vitePort); err != nil && ctx.Err() == nil {
+		if err := runViteDev(ctx, s.viteDir, vitePort, s.natsWSPort); err != nil && ctx.Err() == nil {
 			slog.Error("vite subprocess failed", "error", err)
 		}
 	}()
 
-	// 5. HTTP server with reverse proxy to Vite
+	// 6. HTTP server with reverse proxy to Vite
 	viteURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", vitePort))
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -148,4 +153,15 @@ func (s *Server) Shutdown() {
 		s.ns.Shutdown()
 		s.ns.WaitForShutdown()
 	}
+}
+
+// freePort asks the OS for an available port.
+func freePort() int {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	return port
 }
