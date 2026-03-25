@@ -35,6 +35,13 @@ func newImpactCmd() *cobra.Command {
 				return fmt.Errorf("graph walk: %w", err)
 			}
 
+			if isJSON(cmd) {
+				if impacted == nil {
+					impacted = []core.ImpactedLink{}
+				}
+				return writeJSON(cmd.OutOrStdout(), impacted)
+			}
+
 			br := core.NewBlastRadius(sec.ID, impacted)
 			fmt.Fprintln(cmd.OutOrStdout(), br.Summary())
 

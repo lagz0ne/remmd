@@ -15,8 +15,23 @@
   },
   "files": [
     "bin/",
-    "scripts/"
+    "scripts/",
+    "view/"
   ],
+  "dependencies": {
+    "vite": "^8.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "@nats-io/nats-core": "^3.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.8.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  },
   "os": ["darwin", "linux", "win32"],
-  "cpu": ["x64", "arm64"]
+  "cpu": ["x64", "arm64"],
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
 }

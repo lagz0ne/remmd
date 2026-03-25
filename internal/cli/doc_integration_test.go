@@ -786,6 +786,184 @@ func TestImpact_NoLinks(t *testing.T) {
 	}
 }
 
+func TestDocDelete(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Delete Me", "--content", "# Section One\n# Section Two"},
+	)
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	docID := extractDocID(t, outputs[0])
+
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "delete", docID},
+	)
+	if err != nil {
+		t.Fatalf("doc delete error: %v", err)
+	}
+	deleteOut := outputs2[0]
+	if !strings.Contains(deleteOut, "deleted") {
+		t.Errorf("output missing 'deleted': %s", deleteOut)
+	}
+	if !strings.Contains(deleteOut, "Delete Me") {
+		t.Errorf("output missing title: %s", deleteOut)
+	}
+	if !strings.Contains(deleteOut, "2 sections removed") {
+		t.Errorf("output missing section count: %s", deleteOut)
+	}
+
+	// Verify doc is gone from list
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "list"},
+	)
+	if err != nil {
+		t.Fatalf("doc list error: %v", err)
+	}
+	if strings.Contains(outputs3[0], "Delete Me") {
+		t.Errorf("deleted doc should not appear in list: %s", outputs3[0])
+	}
+}
+
+func TestDocDelete_NotFound(t *testing.T) {
+	t.Parallel()
+	_, err := execCmd(t, "doc", "delete", "nonexistent-id")
+	if err == nil {
+		t.Fatal("expected error for non-existent doc")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' error, got: %v", err)
+	}
+}
+
+func TestDocDelete_Multiple(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Doc A"},
+		[]string{"doc", "create", "Doc B"},
+	)
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	idA := extractDocID(t, outputs[0])
+	idB := extractDocID(t, outputs[1])
+
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "delete", idA, idB},
+	)
+	if err != nil {
+		t.Fatalf("doc delete error: %v", err)
+	}
+	deleteOut := outputs2[0]
+	if !strings.Contains(deleteOut, "Doc A") {
+		t.Errorf("output missing 'Doc A': %s", deleteOut)
+	}
+	if !strings.Contains(deleteOut, "Doc B") {
+		t.Errorf("output missing 'Doc B': %s", deleteOut)
+	}
+}
+
+func TestDocArchive(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Archive Me"},
+	)
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	docID := extractDocID(t, outputs[0])
+
+	outputs2, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "archive", docID},
+	)
+	if err != nil {
+		t.Fatalf("doc archive error: %v", err)
+	}
+	archiveOut := outputs2[0]
+	if !strings.Contains(archiveOut, "archived") {
+		t.Errorf("output missing 'archived': %s", archiveOut)
+	}
+	if !strings.Contains(archiveOut, "Archive Me") {
+		t.Errorf("output missing title: %s", archiveOut)
+	}
+}
+
+func TestDocArchive_NotFound(t *testing.T) {
+	t.Parallel()
+	_, err := execCmd(t, "doc", "archive", "nonexistent-id")
+	if err == nil {
+		t.Fatal("expected error for non-existent doc")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' error, got: %v", err)
+	}
+}
+
+func TestDocList_HidesArchived(t *testing.T) {
+	t.Parallel()
+	tmpDB := t.TempDir() + "/test.db"
+
+	outputs, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "create", "Active Doc"},
+		[]string{"doc", "create", "Archived Doc"},
+	)
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	archivedID := extractDocID(t, outputs[1])
+
+	// Archive the second doc
+	_, err = execCmdChain2(t, tmpDB,
+		[]string{"doc", "archive", archivedID},
+	)
+	if err != nil {
+		t.Fatalf("archive error: %v", err)
+	}
+
+	// Default list should hide archived
+	outputs3, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "list"},
+	)
+	if err != nil {
+		t.Fatalf("list error: %v", err)
+	}
+	listOut := outputs3[0]
+	if !strings.Contains(listOut, "Active Doc") {
+		t.Errorf("list should show active doc: %s", listOut)
+	}
+	if strings.Contains(listOut, "Archived Doc") {
+		t.Errorf("list should hide archived doc by default: %s", listOut)
+	}
+
+	// --all flag should show archived
+	outputs4, err := execCmdChain2(t, tmpDB,
+		[]string{"doc", "list", "--all"},
+	)
+	if err != nil {
+		t.Fatalf("list --all error: %v", err)
+	}
+	allOut := outputs4[0]
+	if !strings.Contains(allOut, "Active Doc") {
+		t.Errorf("list --all should show active doc: %s", allOut)
+	}
+	if !strings.Contains(allOut, "Archived Doc") {
+		t.Errorf("list --all should show archived doc: %s", allOut)
+	}
+	if !strings.Contains(allOut, "[archived]") {
+		t.Errorf("list --all should mark archived docs: %s", allOut)
+	}
+}
+
 func TestDocCreate_GlobalRefUniqueness(t *testing.T) {
 	t.Parallel()
 	tmpDB := t.TempDir() + "/test.db"

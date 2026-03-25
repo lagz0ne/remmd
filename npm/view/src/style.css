@@ -1,0 +1,185 @@
+:root {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #e0e0e0;
+  --aligned: #2e7d32;
+  --stale: #f57c00;
+  --pending: #616161;
+  --broken: #c62828;
+  --archived: #9e9e9e;
+  --card-bg: #fff;
+  --hover: #f5f5f5;
+  --copied-bg: #e8f5e9;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+.loading, .error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.doc-view {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+header {
+  margin-bottom: 32px;
+}
+
+header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'Georgia', serif;
+  margin-bottom: 8px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.meta button {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.meta button:hover { background: var(--hover); }
+.meta button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.section-card {
+  padding: 16px 20px;
+  background: var(--card-bg);
+  border-left: 3px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.section-card:hover { background: var(--hover); }
+.section-card.copied { background: var(--copied-bg); }
+
+.section-card.state-aligned { border-left-color: var(--aligned); }
+.section-card.state-stale { border-left-color: var(--stale); }
+.section-card.state-pending { border-left-color: var(--pending); }
+.section-card.state-broken { border-left-color: var(--broken); }
+.section-card.state-archived { border-left-color: var(--archived); }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ref {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.badge.state-aligned { background: var(--aligned); }
+.badge.state-stale { background: var(--stale); }
+.badge.state-pending { background: var(--pending); }
+.badge.state-broken { background: var(--broken); }
+.badge.state-archived { background: var(--archived); }
+
+.source-link {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.section-content {
+  font-size: 14px;
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+
+.external-note {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.section-footer {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--fg);
+  color: var(--bg);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  animation: fadein 0.2s ease;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Diff highlighting */
+.diff-container { line-height: 1.6; }
+.diff-insert { background: #dcfce7; padding: 1px 2px; border-radius: 2px; }
+.diff-delete { text-decoration: line-through; color: var(--muted); opacity: 0.7; }
+.has-diff { animation: diff-pulse 0.3s ease; }
+@keyframes diff-pulse {
+  0% { background: var(--card-bg); }
+  50% { background: #fffde7; }
+  100% { background: var(--card-bg); }
+}

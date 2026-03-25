@@ -12,6 +12,7 @@ type SectionVersion struct {
 	Version     int
 	Content     string
 	ContentHash string
+	Metadata    string
 	CreatedAt   time.Time
 }
 
@@ -34,4 +35,27 @@ type DocumentRepository interface {
 	GetTags(ctx context.Context, sectionID string) ([]string, error)
 
 	NextRefSeq(ctx context.Context, count int) (int, error) // reserves `count` sequential ref numbers, returns the first
+
+	CreateSections(ctx context.Context, sections []Section) error
+	ListDocumentsWithSectionCounts(ctx context.Context) ([]DocumentSummary, error)
+	SearchSections(ctx context.Context, query string) ([]*Section, error)
+	FindSectionsByTag(ctx context.Context, tag string) ([]*Section, error)
+}
+
+type DocumentSummary struct {
+	Document     *Document
+	SectionCount int
+}
+
+type RelationRepository interface {
+	CreateRelation(ctx context.Context, r *Relation) error
+	ListRelationsFrom(ctx context.Context, docID string) ([]Relation, error)
+	ListRelationsTo(ctx context.Context, docID string) ([]Relation, error)
+	DeleteRelation(ctx context.Context, id string) error
+}
+
+type TemplateRepository interface {
+	SetTemplate(ctx context.Context, t SchemaTemplate) error
+	GetTemplates(ctx context.Context, docType string) ([]SchemaTemplate, error)
+	DeleteTemplate(ctx context.Context, docType, requiredKind string) error
 }

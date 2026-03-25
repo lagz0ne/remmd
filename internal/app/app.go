@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/lagz0ne/remmd/internal/core"
 	"github.com/lagz0ne/remmd/internal/store"
 )
 
@@ -13,7 +14,10 @@ type App struct {
 	Docs          *store.DocumentRepo
 	Links         *store.LinkRepo
 	Subscriptions *store.SubscriptionRepo
-	Events        *store.EventStore
+	Relations     *store.RelationRepo
+	Templates     *store.TemplateRepo
+	Reviews       *core.ReviewService
+	Snapshots     *store.SnapshotService
 }
 
 // New creates a new App, opening the database at dbPath and running migrations.
@@ -26,12 +30,20 @@ func New(dbPath string) (*App, error) {
 		db.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
+	docs := store.NewDocumentRepo(db)
+	links := store.NewLinkRepo(db)
+	snapshots := store.NewSnapshotService(links, docs)
+	reviews := core.NewReviewService(links, links, snapshots)
+
 	return &App{
 		DB:            db,
-		Docs:          store.NewDocumentRepo(db),
-		Links:         store.NewLinkRepo(db),
+		Docs:          docs,
+		Links:         links,
 		Subscriptions: store.NewSubscriptionRepo(db),
-		Events:        store.NewEventStore(db),
+		Relations:     store.NewRelationRepo(db),
+		Templates:     store.NewTemplateRepo(db),
+		Reviews:       reviews,
+		Snapshots:     snapshots,
 	}, nil
 }
 

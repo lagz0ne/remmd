@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	"github.com/lagz0ne/remmd/internal/app"
 	"github.com/spf13/cobra"
@@ -35,10 +34,7 @@ func RequireApp(cmd *cobra.Command) (*app.App, error) {
 }
 
 func defaultDBPath() string {
-	home, _ := os.UserHomeDir()
-	dir := filepath.Join(home, ".remmd")
-	os.MkdirAll(dir, 0755)
-	return filepath.Join(dir, "remmd.db")
+	return discoverDBPath()
 }
 
 // skipAppInit returns true for commands that don't need a database.
@@ -53,8 +49,9 @@ func skipAppInit(cmd *cobra.Command) bool {
 // NewRootCmd creates the root cobra command for remmd.
 func NewRootCmd() *cobra.Command {
 	var (
-		debug  bool
-		dbPath string
+		debug      bool
+		dbPath     string
+		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -98,6 +95,8 @@ When linked content changes, the graph walks and counterparties review.`,
 				return nil
 			}
 
+			slog.Debug("database path resolved", "path", dbPath)
+
 			application, err := app.New(dbPath)
 			if err != nil {
 				return err
@@ -116,6 +115,7 @@ When linked content changes, the graph walks and counterparties review.`,
 
 	cmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringVar(&dbPath, "db", defaultDBPath(), "Database file path")
+	cmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	contentGroup := &cobra.Group{ID: "content", Title: "Content:"}
 	linksGroup := &cobra.Group{ID: "links", Title: "Links:"}
@@ -133,13 +133,20 @@ When linked content changes, the graph walks and counterparties review.`,
 	addToGroup(contentGroup, newShowCmd())
 	addToGroup(contentGroup, newEditCmd())
 	addToGroup(contentGroup, newDeleteCmd())
+	addToGroup(contentGroup, newSearchCmd())
+	addToGroup(contentGroup, newFindCmd())
+	addToGroup(contentGroup, newImportCmd())
 
 	addToGroup(linksGroup, newLinkGroupCmd())
 	addToGroup(linksGroup, newImpactCmd())
+	addToGroup(linksGroup, newRelationGroupCmd())
 
 	addToGroup(subscriptionsGroup, newTagCmd())
+	addToGroup(subscriptionsGroup, newTemplateGroupCmd())
 
+	addToGroup(systemGroup, newServeCmd())
 	addToGroup(systemGroup, newHealthCmd())
+	addToGroup(systemGroup, newMigrateRefsCmd())
 
 	return cmd
 }

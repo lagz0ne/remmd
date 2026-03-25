@@ -950,6 +950,105 @@ func TestNextRefSeq_AfterExistingSections(t *testing.T) {
 	}
 }
 
+func TestDeleteDocument(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "To Delete", OwnerID: "user-1", Status: core.DocumentActive, Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	// Add sections with tags and versions
+	ref, _ := core.ParseRef("@a1")
+	sectionID := core.NewID().String()
+	s := &core.Section{
+		ID: sectionID, DocID: docID, Ref: ref, Type: core.SectionHeading,
+		Content: "content", ContentHash: core.ContentHash("content"), Order: 1,
+	}
+	if err := repo.CreateSection(ctx, s); err != nil {
+		t.Fatalf("CreateSection: %v", err)
+	}
+	if err := repo.AddTag(ctx, sectionID, "api"); err != nil {
+		t.Fatalf("AddTag: %v", err)
+	}
+	if err := repo.UpdateSectionContent(ctx, sectionID, "v2", core.ContentHash("v2")); err != nil {
+		t.Fatalf("UpdateSectionContent: %v", err)
+	}
+
+	// Delete the document
+	if err := repo.DeleteDocument(ctx, docID); err != nil {
+		t.Fatalf("DeleteDocument: %v", err)
+	}
+
+	// Document should be gone
+	_, err := repo.FindDocumentByID(ctx, docID)
+	if !errors.Is(err, core.ErrNotFound{}) {
+		t.Errorf("expected ErrNotFound after delete, got: %v", err)
+	}
+
+	// Sections should be gone
+	sections, err := repo.ListSections(ctx, docID)
+	if err != nil {
+		t.Fatalf("ListSections: %v", err)
+	}
+	if len(sections) != 0 {
+		t.Errorf("expected 0 sections after delete, got %d", len(sections))
+	}
+}
+
+func TestDeleteDocument_NotFound(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	err := repo.DeleteDocument(ctx, "does-not-exist")
+	if !errors.Is(err, core.ErrNotFound{}) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}
+
+func TestArchiveDocument(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	docID := core.NewID().String()
+	doc := &core.Document{ID: docID, Title: "To Archive", OwnerID: "user-1", Status: core.DocumentActive, Source: "native"}
+	if err := repo.CreateDocument(ctx, doc); err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+
+	if err := repo.ArchiveDocument(ctx, docID); err != nil {
+		t.Fatalf("ArchiveDocument: %v", err)
+	}
+
+	got, err := repo.FindDocumentByID(ctx, docID)
+	if err != nil {
+		t.Fatalf("FindDocumentByID: %v", err)
+	}
+	if got.Status != core.DocumentArchived {
+		t.Errorf("Status = %q, want %q", got.Status, core.DocumentArchived)
+	}
+}
+
+func TestArchiveDocument_NotFound(t *testing.T) {
+	t.Parallel()
+	db := setupDocTestDB(t)
+	repo := store.NewDocumentRepo(db)
+	ctx := context.Background()
+
+	err := repo.ArchiveDocument(ctx, "does-not-exist")
+	if !errors.Is(err, core.ErrNotFound{}) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}
+
 func TestCreateSection_ExternalDefaultMetadata(t *testing.T) {
 	t.Parallel()
 	db := setupDocTestDB(t)

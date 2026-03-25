@@ -15,7 +15,7 @@ func TestNew_InMemory(t *testing.T) {
 		t.Fatalf("New(:memory:): %v", err)
 	}
 	defer a.Close()
-	if a.Docs == nil || a.Links == nil || a.Events == nil || a.Subscriptions == nil {
+	if a.Docs == nil || a.Links == nil || a.Subscriptions == nil {
 		t.Fatal("repos should not be nil")
 	}
 }

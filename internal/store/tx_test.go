@@ -27,8 +27,7 @@ func TestWithTx_CommitsOnSuccess(t *testing.T) {
 	defer store.CloseDB(db)
 
 	err := store.WithTx(context.Background(), db, func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO events (id, aggregate_id, aggregate_type, event_type, payload, principal_id, sequence)
-			VALUES ('evt-tx-1', 'agg-1', 'Document', 'DocumentCreated', '{}', 'user-1', 1)`)
+		_, err := tx.Exec(`INSERT INTO documents (id, title, owner_id) VALUES ('doc-tx-1', 'tx test', 'user-1')`)
 		return err
 	})
 	if err != nil {
@@ -37,7 +36,7 @@ func TestWithTx_CommitsOnSuccess(t *testing.T) {
 
 	// Row should be visible outside the transaction
 	var id string
-	err = db.QueryRow("SELECT id FROM events WHERE id = 'evt-tx-1'").Scan(&id)
+	err = db.QueryRow("SELECT id FROM documents WHERE id = 'doc-tx-1'").Scan(&id)
 	if err != nil {
 		t.Fatalf("committed row not found: %v", err)
 	}
@@ -50,8 +49,7 @@ func TestWithTx_RollsBackOnError(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	err := store.WithTx(context.Background(), db, func(tx *sql.Tx) error {
-		_, _ = tx.Exec(`INSERT INTO events (id, aggregate_id, aggregate_type, event_type, payload, principal_id, sequence)
-			VALUES ('evt-tx-2', 'agg-1', 'Document', 'DocumentCreated', '{}', 'user-1', 1)`)
+		_, _ = tx.Exec(`INSERT INTO documents (id, title, owner_id) VALUES ('doc-tx-2', 'tx test', 'user-1')`)
 		return errBoom
 	})
 	if !errors.Is(err, errBoom) {
@@ -60,7 +58,7 @@ func TestWithTx_RollsBackOnError(t *testing.T) {
 
 	// Row should NOT be visible
 	var id string
-	err = db.QueryRow("SELECT id FROM events WHERE id = 'evt-tx-2'").Scan(&id)
+	err = db.QueryRow("SELECT id FROM documents WHERE id = 'doc-tx-2'").Scan(&id)
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("expected ErrNoRows after rollback, got: %v (id=%s)", err, id)
 	}
@@ -79,15 +77,14 @@ func TestWithTx_RollsBackOnPanic(t *testing.T) {
 			}
 		}()
 		_ = store.WithTx(context.Background(), db, func(tx *sql.Tx) error {
-			_, _ = tx.Exec(`INSERT INTO events (id, aggregate_id, aggregate_type, event_type, payload, principal_id, sequence)
-				VALUES ('evt-tx-3', 'agg-1', 'Document', 'DocumentCreated', '{}', 'user-1', 1)`)
+			_, _ = tx.Exec(`INSERT INTO documents (id, title, owner_id) VALUES ('doc-tx-3', 'tx test', 'user-1')`)
 			panic("kaboom")
 		})
 	}()
 
 	// Row should NOT be visible after panic rollback
 	var id string
-	err := db.QueryRow("SELECT id FROM events WHERE id = 'evt-tx-3'").Scan(&id)
+	err := db.QueryRow("SELECT id FROM documents WHERE id = 'doc-tx-3'").Scan(&id)
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("expected ErrNoRows after panic rollback, got: %v (id=%s)", err, id)
 	}

@@ -33,3 +33,7 @@ func (a *linkQuerierAdapter) LinksContainingSection(ctx context.Context, section
 	}
 	return result, nil
 }
+
+func (a *linkQuerierAdapter) LinksContainingSections(ctx context.Context, sectionIDs []string) (map[string][]*core.LinkInfo, error) {
+	return a.repo.LinksContainingSections(ctx, sectionIDs)
+}

@@ -201,6 +201,71 @@ func scanLinkWithSections(row scannable) (*core.Link, error) {
 	return &link, nil
 }
 
+// LinksContainingSections returns a map from section ID to the links containing that section.
+func (r *LinkRepo) LinksContainingSections(ctx context.Context, sectionIDs []string) (map[string][]*core.LinkInfo, error) {
+	if len(sectionIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(sectionIDs))
+	args := make([]any, len(sectionIDs))
+	for i, id := range sectionIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `SELECT DISTINCT l.id, l.state, l.relationship_type,
+		COALESCE(GROUP_CONCAT(CASE WHEN ls.side = 'left' THEN ls.section_id END, ','), ''),
+		COALESCE(GROUP_CONCAT(CASE WHEN ls.side = 'right' THEN ls.section_id END, ','), '')
+		FROM links l
+		JOIN link_sections ls ON l.id = ls.link_id
+		WHERE l.id IN (SELECT DISTINCT link_id FROM link_sections WHERE section_id IN (` + strings.Join(placeholders, ",") + `))
+		GROUP BY l.id`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("links containing sections batch: %w", err)
+	}
+	defer rows.Close()
+
+	// Collect all links first.
+	var links []*core.LinkInfo
+	for rows.Next() {
+		var li core.LinkInfo
+		var leftIDsStr, rightIDsStr string
+		if err := rows.Scan(&li.ID, &li.State, &li.RelationshipType, &leftIDsStr, &rightIDsStr); err != nil {
+			return nil, fmt.Errorf("scan link info: %w", err)
+		}
+		if leftIDsStr != "" {
+			li.LeftSectionIDs = strings.Split(leftIDsStr, ",")
+		}
+		if rightIDsStr != "" {
+			li.RightSectionIDs = strings.Split(rightIDsStr, ",")
+		}
+		links = append(links, &li)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build map: section ID -> links containing that section.
+	requested := make(map[string]bool, len(sectionIDs))
+	for _, id := range sectionIDs {
+		requested[id] = true
+	}
+	result := make(map[string][]*core.LinkInfo)
+	for _, li := range links {
+		for _, sid := range li.LeftSectionIDs {
+			if requested[sid] {
+				result[sid] = append(result[sid], li)
+			}
+		}
+		for _, sid := range li.RightSectionIDs {
+			if requested[sid] {
+				result[sid] = append(result[sid], li)
+			}
+		}
+	}
+	return result, nil
+}
+
 func populateLink(link *core.Link, relType, state, leftInt, rightInt, createdAt, leftIDsStr, rightIDsStr string) {
 	link.RelationshipType = core.RelationshipType(relType)
 	link.State = core.LinkState(state)

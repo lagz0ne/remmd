@@ -175,6 +175,45 @@ func TestParse_StartSeqZero_DefaultBehavior(t *testing.T) {
 	}
 }
 
+func TestParse_HeadingWithBody(t *testing.T) {
+	t.Parallel()
+	sections := Parse("doc1", "# Title\n\nFirst paragraph.\n\nSecond paragraph.", 0)
+	if len(sections) != 1 {
+		t.Fatalf("got %d sections, want 1", len(sections))
+	}
+	want := "Title\n\nFirst paragraph.\n\nSecond paragraph."
+	if sections[0].Content != want {
+		t.Errorf("Content = %q, want %q", sections[0].Content, want)
+	}
+}
+
+func TestParse_BodyBetweenHeadings(t *testing.T) {
+	t.Parallel()
+	sections := Parse("doc1", "# A\n\nBody of A.\n\n# B\n\nBody of B.", 0)
+	if len(sections) != 2 {
+		t.Fatalf("got %d sections, want 2", len(sections))
+	}
+	if sections[0].Content != "A\n\nBody of A." {
+		t.Errorf("section 0 Content = %q", sections[0].Content)
+	}
+	if sections[1].Content != "B\n\nBody of B." {
+		t.Errorf("section 1 Content = %q", sections[1].Content)
+	}
+}
+
+func TestParse_MultiParagraphBody(t *testing.T) {
+	t.Parallel()
+	md := "# Intro\n\nPara one.\n\nPara two.\n\nPara three."
+	sections := Parse("doc1", md, 0)
+	if len(sections) != 1 {
+		t.Fatalf("got %d sections, want 1", len(sections))
+	}
+	want := "Intro\n\nPara one.\n\nPara two.\n\nPara three."
+	if sections[0].Content != want {
+		t.Errorf("Content = %q, want %q", sections[0].Content, want)
+	}
+}
+
 // --- helpers ---
 
 func assertSection(t *testing.T, s Section, typ SectionType, title string, parentRef *Ref) {

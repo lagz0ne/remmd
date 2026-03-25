@@ -35,6 +35,7 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 	var listStack []listEntry
 
 	currentHeadingIdx := -1
+	var bodyLines []string
 	tableState := 0 // 0=none, 1=header-seen, 2=separator-seen (data rows follow)
 	inCodeBlock := false
 	codeBlockLang := ""
@@ -81,10 +82,14 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 		if trimmed == "" {
 			tableState = 0
 			listStack = nil
+			if currentHeadingIdx >= 0 && len(bodyLines) > 0 {
+				bodyLines = append(bodyLines, "")
+			}
 			continue
 		}
 
 		if strings.HasPrefix(trimmed, "#") {
+			flushBody(sections, currentHeadingIdx, &bodyLines)
 			level := 0
 			for _, c := range trimmed {
 				if c == '#' {
@@ -224,10 +229,33 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 			continue
 		}
 
+		bodyLines = append(bodyLines, line)
 		tableState = 0
 	}
 
+	flushBody(sections, currentHeadingIdx, &bodyLines)
 	return sections
+}
+
+// flushBody appends accumulated body lines to the heading section's Content.
+func flushBody(sections []Section, headingIdx int, bodyLines *[]string) {
+	if headingIdx < 0 || len(*bodyLines) == 0 {
+		*bodyLines = nil
+		return
+	}
+	// Trim trailing empty lines
+	body := *bodyLines
+	for len(body) > 0 && body[len(body)-1] == "" {
+		body = body[:len(body)-1]
+	}
+	if len(body) == 0 {
+		*bodyLines = nil
+		return
+	}
+	joined := strings.Join(body, "\n")
+	sections[headingIdx].Content = sections[headingIdx].Title + "\n\n" + joined
+	sections[headingIdx].ContentHash = ContentHash(sections[headingIdx].Content)
+	*bodyLines = nil
 }
 
 // countIndent returns the number of leading spaces on a line.

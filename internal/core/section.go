@@ -27,6 +27,7 @@ type Section struct {
 	Ref         Ref
 	DocID       string
 	Type        SectionType
+	Kind        string
 	Title       string
 	Content     string
 	ContentHash string

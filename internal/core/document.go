@@ -15,27 +15,29 @@ const (
 
 // Document is the primary aggregate for content authoring.
 type Document struct {
-	ID        string
-	Title     string
-	OwnerID   string
-	Status    DocumentStatus
-	Source    string // "native" | adapter type
-	CreatedAt time.Time
-	sections  []Section
-	tags      map[string]bool
+	ID          string
+	Title       string
+	OwnerID     string
+	Status      DocumentStatus
+	Source      string
+	DocType     string
+	ParentDocID string
+	CreatedAt   time.Time
+	sections    []Section
+	tags        map[string]bool
 }
 
 // NewDocument creates a new Document with an auto-generated ID, active status,
 // and current timestamp.
 func NewDocument(title, ownerID string) *Document {
 	return &Document{
-		ID:        NewID().String(),
-		Title:     title,
-		OwnerID:   ownerID,
-		Status:    DocumentActive,
+		ID:          NewID().String(),
+		Title:       title,
+		OwnerID:     ownerID,
+		Status:      DocumentActive,
 		Source:    "native",
 		CreatedAt: time.Now(),
-		tags:      make(map[string]bool),
+		tags:        make(map[string]bool),
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 // Defined here so the walker doesn't depend on concrete Link or store types.
 type LinkQuerier interface {
 	LinksContainingSection(ctx context.Context, sectionID string) ([]*LinkInfo, error)
+	LinksContainingSections(ctx context.Context, sectionIDs []string) (map[string][]*LinkInfo, error)
 }
 
 // LinkInfo is the minimal link data the graph walker needs.

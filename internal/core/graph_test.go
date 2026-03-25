@@ -11,6 +11,20 @@ type mockLinkQuerier struct {
 	links []*core.LinkInfo
 }
 
+func (m *mockLinkQuerier) LinksContainingSections(ctx context.Context, sectionIDs []string) (map[string][]*core.LinkInfo, error) {
+	result := make(map[string][]*core.LinkInfo)
+	for _, sid := range sectionIDs {
+		links, err := m.LinksContainingSection(ctx, sid)
+		if err != nil {
+			return nil, err
+		}
+		if len(links) > 0 {
+			result[sid] = links
+		}
+	}
+	return result, nil
+}
+
 func (m *mockLinkQuerier) LinksContainingSection(ctx context.Context, sectionID string) ([]*core.LinkInfo, error) {
 	var result []*core.LinkInfo
 	for _, l := range m.links {

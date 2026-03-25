@@ -25,6 +25,7 @@ func newLinkGroupCmd() *cobra.Command {
 	cmd.AddCommand(newLinkApproveCmd())
 	cmd.AddCommand(newLinkCommentCmd())
 	cmd.AddCommand(newLinkReaffirmCmd())
+	cmd.AddCommand(newLinkWithdrawCmd())
 	cmd.AddCommand(newLinkListCmd())
 
 	return cmd
@@ -97,6 +98,15 @@ func newLinkProposeCmd() *cobra.Command {
 				return fmt.Errorf("create link: %w", err)
 			}
 
+			if isJSON(cmd) {
+				return writeJSON(cmd.OutOrStdout(), map[string]any{
+					"id":           link.ID,
+					"state":        string(link.State),
+					"left":         leftRef,
+					"right":        rightRef,
+					"relationship": string(link.RelationshipType),
+				})
+			}
 			fmt.Fprintf(cmd.OutOrStdout(), "link %s opened: %s --%s-> %s\n",
 				link.ID, leftRef, relType, rightRef)
 			if rationale != "" {
@@ -127,12 +137,20 @@ func newLinkApproveCmd() *cobra.Command {
 			}
 
 			ctx := cmd.Context()
+			principal := core.Principal{ID: cliPrincipal, Type: core.PrincipalHuman, Name: "CLI User"}
 			for _, id := range args {
-				if err := a.Links.UpdateLinkState(ctx, id, core.LinkAligned); err != nil {
+				snap, err := a.Snapshots.ComputeSnapshot(ctx, id)
+				if err != nil {
+					return fmt.Errorf("compute snapshot for %s: %w", id, err)
+				}
+				if err := a.Reviews.Approve(ctx, principal, id, snap.Hash()); err != nil {
 					return fmt.Errorf("approve %s: %w", id, err)
 				}
-				if err := a.Links.AddThreadEntry(ctx, id, core.EntrySystem, cliPrincipal, "approved"); err != nil {
-					return fmt.Errorf("thread entry for %s: %w", id, err)
+				if isJSON(cmd) {
+					if err := writeJSON(cmd.OutOrStdout(), map[string]string{"id": id, "state": "aligned"}); err != nil {
+						return err
+					}
+					continue
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "approved %s\n", id)
 			}
@@ -181,6 +199,7 @@ func newLinkReaffirmCmd() *cobra.Command {
 			}
 
 			ctx := cmd.Context()
+			principal := core.Principal{ID: cliPrincipal, Type: core.PrincipalHuman, Name: "CLI User"}
 
 			if all {
 				links, err := a.Links.ListLinks(ctx, string(core.LinkStale))
@@ -188,10 +207,9 @@ func newLinkReaffirmCmd() *cobra.Command {
 					return fmt.Errorf("list stale links: %w", err)
 				}
 				for _, link := range links {
-					if err := a.Links.UpdateLinkState(ctx, link.ID, core.LinkAligned); err != nil {
+					if err := a.Reviews.Reaffirm(ctx, principal, link.ID); err != nil {
 						return fmt.Errorf("reaffirm %s: %w", link.ID, err)
 					}
-					_ = a.Links.AddThreadEntry(ctx, link.ID, core.EntrySystem, cliPrincipal, "reaffirmed")
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "reaffirmed %d stale links\n", len(links))
 				return nil
@@ -202,15 +220,45 @@ func newLinkReaffirmCmd() *cobra.Command {
 			}
 
 			id := args[0]
-			if err := a.Links.UpdateLinkState(ctx, id, core.LinkAligned); err != nil {
+			if err := a.Reviews.Reaffirm(ctx, principal, id); err != nil {
 				return fmt.Errorf("reaffirm %s: %w", id, err)
 			}
-			_ = a.Links.AddThreadEntry(ctx, id, core.EntrySystem, cliPrincipal, "reaffirmed")
 			fmt.Fprintf(cmd.OutOrStdout(), "reaffirmed %s\n", id)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "Reaffirm all stale links")
+	return cmd
+}
+
+func newLinkWithdrawCmd() *cobra.Command {
+	var reason string
+	cmd := &cobra.Command{
+		Use:   "withdraw [link-id]",
+		Short: "Withdraw (archive) a link",
+		Example: `  remmd link withdraw <link-id> --reason "No longer needed"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := RequireApp(cmd)
+			if err != nil {
+				return err
+			}
+
+			ctx := cmd.Context()
+			principal := core.Principal{ID: cliPrincipal, Type: core.PrincipalHuman, Name: "CLI User"}
+
+			id := args[0]
+			if reason == "" {
+				reason = "withdrawn"
+			}
+			if err := a.Reviews.Withdraw(ctx, principal, id, reason); err != nil {
+				return fmt.Errorf("withdraw %s: %w", id, err)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "withdrawn %s\n", id)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&reason, "reason", "", "Reason for withdrawal")
 	return cmd
 }
 
@@ -244,6 +292,27 @@ func newLinkListCmd() *cobra.Command {
 			links, err := a.Links.ListLinks(cmd.Context(), stateFilter)
 			if err != nil {
 				return fmt.Errorf("list links: %w", err)
+			}
+
+			if isJSON(cmd) {
+				type linkEntry struct {
+					ID           string `json:"id"`
+					State        string `json:"state"`
+					Relationship string `json:"relationship"`
+					Left         string `json:"left"`
+					Right        string `json:"right"`
+				}
+				entries := make([]linkEntry, 0, len(links))
+				for _, l := range links {
+					entries = append(entries, linkEntry{
+						ID:           l.ID,
+						State:        string(l.State),
+						Relationship: string(l.RelationshipType),
+						Left:         strings.Join(l.LeftSectionIDs, ","),
+						Right:        strings.Join(l.RightSectionIDs, ","),
+					})
+				}
+				return writeJSON(cmd.OutOrStdout(), entries)
 			}
 
 			if len(links) == 0 {
