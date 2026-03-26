@@ -43,6 +43,11 @@ func skipAppInit(cmd *cobra.Command) bool {
 	case "health", "help", "completion":
 		return true
 	}
+	if cmd.Name() == "check" {
+		if p := cmd.Parent(); p != nil && p.Name() == "playbook" {
+			return true
+		}
+	}
 	return false
 }
 
@@ -144,6 +149,7 @@ When linked content changes, the graph walks and counterparties review.`,
 	addToGroup(subscriptionsGroup, newTagCmd())
 	addToGroup(subscriptionsGroup, newTemplateGroupCmd())
 
+	addToGroup(systemGroup, newPlaybookCmd())
 	addToGroup(systemGroup, newServeCmd())
 	addToGroup(systemGroup, newHealthCmd())
 	addToGroup(systemGroup, newMigrateRefsCmd())

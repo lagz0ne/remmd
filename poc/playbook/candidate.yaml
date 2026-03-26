@@ -1,0 +1,127 @@
+# playbook/1.0
+
+# --- P1: Declare node types with named fields ---
+# --- P2: Field data types (inline notation) ---
+# --- P3: Required/optional fields (! suffix) ---
+component:
+  description: "Functional unit within a container"
+  goal: string!
+  status: enum(active, provisioned, archived)
+  parent: ref(container)!
+  uses: list(ref)
+  # --- P4: Named content sections ---
+  # --- P5: Required/optional sections (! suffix) ---
+  sections: [Dependencies!, "Related Refs"]
+  rules:
+    # --- P12: Dangling edge target ---
+    dangling-cite:
+      severity: error
+      expr: 'self.uses.all(u, exists("ref", u))'
+    # --- P18: Scope inheritance ---
+    scope-crosscheck:
+      description: "If ref scopes a container, child components should cite explicitly"
+      severity: warning
+      expr: 'parent_refs(self).all(r, r in self.uses)'
+
+ref:
+  description: "Cross-cutting architectural pattern"
+  goal: string!
+  sections: [Choice!, Why!, How]
+  rules:
+    # --- P11: Orphan detection ---
+    orphan-ref:
+      description: "Every ref must be cited by at least one component"
+      severity: error
+      expr: 'size(edges_in("cites")) >= 1'
+      # --- P20: Golden examples ---
+      example:
+        - [true, { ref-logging: { cited_by: [cmd-root, graph] } }]
+        - [false, { ref-jwt: { cited_by: [] } }]
+
+container:
+  description: "Deployment boundary"
+  goal: string!
+  boundary: enum(process, library)
+
+screen:
+  description: "Top-level viewport"
+  name: string!
+
+region:
+  description: "Scoped UI area"
+  name: string!
+  parent: ref(screen | region)!
+  rules:
+    # --- P13: Hierarchy depth ---
+    nesting-depth:
+      severity: warning
+      expr: 'depth(self, "nests") <= 2'
+
+event:
+  description: "User or system action"
+  name: string!
+  emitted_by: ref(region)!
+  rules:
+    # --- P15: Orphan event ---
+    orphan-emit:
+      description: "Every emitted event must have at least one handler"
+      severity: error
+      expr: 'size(edges_in("handles")) >= 1'
+      example:
+        - [true, { select-email: { handlers: ["inbox.browsing->detail"] } }]
+        - [false, { notify-sent: { handlers: [] } }]
+
+transition:
+  description: "State change triggered by event"
+  on: ref(event)!
+  from: string!
+  to: string
+  action: string
+  guard: string
+  rules:
+    # --- P14: State reachability ---
+    unreachable-state:
+      severity: error
+      expr: 'states(self.owner).all(s, s == initial || size(transitions_to(s)) > 0)'
+    # --- P16: Duplicate transition ---
+    duplicate-transition:
+      severity: error
+      expr: 'count(siblings(self, on: self.on, from: self.from)) == 1'
+
+flow:
+  description: "Named user journey"
+  sequence: string!
+  rules:
+    # --- P17: Cross-ref validation ---
+    invalid-flow-ref:
+      severity: error
+      expr: 'self.steps.all(s, exists(s.type, s.target))'
+
+# --- P6: Edge types (arrow notation with cardinality) ---
+# --- P7: Edge cardinality ---
+cites: "component -> ref [1..*]"
+contains: "container -> component [1..*]"
+nests: "screen|region -> region [0..*]"
+handles: "transition -> event [1..1]"
+emits: "region -> event [0..*]"
+navigates: "transition -> screen [0..1]"
+
+# --- P8: Required field non-empty (global rule) ---
+field-required:
+  description: "Required fields must have non-empty values"
+  severity: error
+  expr: 'self.fields.filter(f, f.required).all(f, len(f.value) > 0)'
+
+# --- P9: Enum in allowed set (global rule) ---
+enum-valid:
+  description: "Enum fields must contain allowed values"
+  severity: error
+  expr: 'self.fields.filter(f, f.type == "enum").all(f, f.value in f.values)'
+
+# --- P10: Ref resolves (global rule) ---
+ref-resolves:
+  description: "Ref fields must point to existing nodes of target type"
+  severity: error
+  expr: 'self.fields.filter(f, f.type == "ref").all(f, exists(f.of, f.value))'
+
+# --- P19: Severity (demonstrated in every rule) ---

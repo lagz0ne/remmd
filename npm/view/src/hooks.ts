@@ -9,10 +9,6 @@ interface SectionsResponse {
   version: number
 }
 
-/**
- * Hook: subscribe to NATS change events and invalidate React Query caches.
- * All data flows through NATS — this is the realtime bridge.
- */
 export function useNatsInvalidation() {
   const queryClient = useQueryClient()
 
@@ -20,23 +16,18 @@ export function useNatsInvalidation() {
     let unsub: (() => void) | null = null
 
     natsSubscribe('remmd.doc.>', (data, subject) => {
-      // Subject: remmd.doc.<docId>.section.<ref>
       const parts = subject.split('.')
       const docId = parts[2]
       console.log('[nats] change event:', subject, data)
 
-      // Invalidate the sections query for this document
       queryClient.invalidateQueries({ queryKey: ['sections', docId] })
+      queryClient.invalidateQueries({ queryKey: ['graph'] })
     }).then(fn => { unsub = fn })
 
     return () => { unsub?.() }
   }, [queryClient])
 }
 
-/**
- * Hook: fetch sections via NATS request-reply.
- * React Query manages caching, stale-while-revalidate, and deduplication.
- */
 export function useSections(docId: string) {
   return useQuery({
     queryKey: ['sections', docId],
@@ -45,9 +36,6 @@ export function useSections(docId: string) {
   })
 }
 
-/**
- * Hook: fetch document list via NATS request-reply.
- */
 export function useDocuments() {
   return useQuery({
     queryKey: ['documents'],

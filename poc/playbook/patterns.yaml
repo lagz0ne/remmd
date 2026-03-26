@@ -1,0 +1,30 @@
+# 20 constraint patterns a playbook syntax must express
+# Extracted from c3-design and sft — the real test suite
+
+structural:
+  P1:  "Declare a node type with named fields"
+  P2:  "Field has a data type (string, enum, ref-to-type, list-of-type)"
+  P3:  "Field is required or optional"
+  P4:  "Node has named content sections (markdown blocks)"
+  P5:  "Section is required or optional"
+  P6:  "Declare an edge type between node types"
+  P7:  "Edge has cardinality (1..*, 0..1, etc.)"
+
+per_node:
+  P8:  "Required field must be non-empty"
+  P9:  "Enum field value must be in allowed set"
+  P10: "Ref field must resolve to existing node of target type"
+
+cross_node:
+  P11: "Node must have >=1 incoming edge of type Y (orphan detection)"
+  P12: "Edge target must resolve to existing node (dangling ref)"
+  P13: "Hierarchy depth constraint (max nesting)"
+  P14: "State reachability (every non-initial state reachable as target)"
+  P15: "Event must have >=1 handler (orphan event)"
+  P16: "No duplicate edges with same qualifier (duplicate transition)"
+  P17: "Cross-reference validates against entity existence (flow refs)"
+  P18: "Scope inheritance (parent constraint propagates to children)"
+
+meta:
+  P19: "Rule has severity level (error vs warning)"
+  P20: "Rule has golden example (valid + invalid snapshots)"

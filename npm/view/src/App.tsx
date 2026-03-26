@@ -1,50 +1,154 @@
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useNatsInvalidation, useSections, useDocuments } from './hooks'
-import { Section } from './components/Section'
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  MiniMap,
+  Controls,
+  Background,
+  BackgroundVariant,
+  type NodeMouseHandler,
+  type EdgeMouseHandler,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+
+import { useNatsInvalidation } from './hooks'
+import { useGraphData } from './canvas/use-graph-data'
+import { useForceLayout } from './canvas/use-layout'
+import { PlaybookNode } from './canvas/PlaybookNode'
+import { GhostNode } from './canvas/GhostNode'
+import { BundledEdge } from './canvas/BundledEdge'
+import { Legend } from './canvas/Legend'
+import { EmptyState } from './canvas/EmptyState'
+import { PanelShell } from './panel/PanelShell'
+import { GapPanel } from './panel/GapPanel'
+import { ThreadPanel } from './panel/ThreadPanel'
+import { usePanelState } from './panel/use-panel-state'
+import { usePlaybook } from './hooks/use-playbook'
 
 const queryClient = new QueryClient()
 
-function DocumentList() {
+const nodeTypes = { document: PlaybookNode, ghost: GhostNode }
+const edgeTypes = { bundled: BundledEdge }
+
+function Canvas() {
   useNatsInvalidation()
-  const { data: docs, isLoading } = useDocuments()
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  const { nodes, edges, isLoading } = useGraphData()
+  const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useForceLayout(nodes, edges)
+  const panel = usePanelState()
+  const { data: pb } = usePlaybook()
+  const playbookTypes = pb?.types ? pb.types.map(t => t.name) : []
 
-  if (isLoading) return <div className="loading">Loading documents...</div>
-  if (!docs || docs.length === 0) return <div className="loading">No documents. Create one with: remmd doc create "Title" --content "# Section"</div>
-
-  const activeDocId = selectedDocId || docs[0].id
-
-  return (
-    <div className="doc-view">
-      <header>
-        <h1>remmd view</h1>
-        <div className="meta">
-          {docs.length > 1 && (
-            <select value={activeDocId} onChange={e => setSelectedDocId(e.target.value)}>
-              {docs.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-            </select>
-          )}
-          {docs.length === 1 && <span className="doc-title">{docs[0].title}</span>}
-        </div>
-      </header>
-      <DocumentView docId={activeDocId} />
-    </div>
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_, node) => {
+      panel.selectNode(node.id)
+    },
+    [panel.selectNode],
   )
-}
 
-function DocumentView({ docId }: { docId: string }) {
-  const { data, isLoading, error } = useSections(docId)
+  const onEdgeClick: EdgeMouseHandler = useCallback(
+    (_, edge) => {
+      const sourceDocId = edge.source
+      panel.selectEdge(edge.id, sourceDocId)
+    },
+    [panel.selectEdge],
+  )
 
-  if (isLoading) return <div className="loading">Loading sections...</div>
-  if (error) return <div className="error">Error: {String(error)}</div>
-  if (!data) return null
+  const onPaneClick = useCallback(() => {
+    panel.close()
+  }, [panel.close])
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-sm text-zinc-400">
+        Loading graph...
+      </div>
+    )
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="h-screen w-screen relative">
+        <EmptyState />
+      </div>
+    )
+  }
+
+  const selectedNode = nodes.find((n) => n.id === panel.selectedNodeId)
+  const selectedEdge = edges.find((e) => e.id === panel.selectedEdgeId)
+  const connectedDocId =
+    selectedEdge && panel.selectedNodeId
+      ? selectedEdge.source === panel.selectedNodeId
+        ? selectedEdge.target
+        : selectedEdge.source
+      : null
+  const connectedNode = connectedDocId ? nodes.find((n) => n.id === connectedDocId) : null
 
   return (
-    <div className="sections">
-      {data.sections.map((s: any) => (
-        <Section key={s.id} ref_={s.ref} data={s} />
-      ))}
+    <div className="h-screen w-screen">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
+        panOnScroll
+        selectionOnDrag
+        panOnDrag={false}
+        minZoom={0.1}
+        maxZoom={2}
+        fitView
+        fitViewOptions={{ padding: 0.3 }}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e4e4e7" />
+        <MiniMap
+          position="bottom-left"
+          pannable
+          zoomable
+          className="!bg-white/80 !border-zinc-200"
+        />
+        <Controls
+          position="bottom-left"
+          showInteractive={false}
+          className="!border-zinc-200 !bg-white/90 !shadow-sm"
+          style={{ marginBottom: 140 }}
+        />
+        <Legend types={playbookTypes} />
+
+        <PanelShell mode={panel.mode} columns={panel.columns} onClose={panel.close}>
+          {panel.mode === 'doc' && selectedNode && (
+            <GapPanel
+              docId={selectedNode.id}
+              docTitle={selectedNode.data.title}
+              playbookType={selectedNode.data.playbookType || ''}
+              owner={selectedNode.data.owner || ''}
+              validationErrors={selectedNode.data.validationErrors || []}
+              validationPassing={selectedNode.data.validationPassing || 0}
+              validationTotal={selectedNode.data.validationTotal || 0}
+              onClose={panel.close}
+            />
+          )}
+
+          {panel.mode === 'edge' && selectedEdge?.data && (
+            <ThreadPanel
+              edgeType={selectedEdge.data.edgeType || ''}
+              state={selectedEdge.data.worstState || ''}
+              sourceTitle={selectedNode?.data.title || ''}
+              targetTitle={connectedNode?.data.title || ''}
+              links={selectedEdge.data.links.map(l => ({
+                id: l.id,
+                state: l.state,
+                relationship_type: l.relationship_type,
+              }))}
+            />
+          )}
+        </PanelShell>
+      </ReactFlow>
     </div>
   )
 }
@@ -52,7 +156,9 @@ function DocumentView({ docId }: { docId: string }) {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <DocumentList />
+      <ReactFlowProvider>
+        <Canvas />
+      </ReactFlowProvider>
     </QueryClientProvider>
   )
 }

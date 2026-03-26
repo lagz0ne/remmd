@@ -1,0 +1,84 @@
+# playbook/1.0
+# SFT Behavioral Spec — constraints for screen/region/event graphs
+
+screen:
+  description: "Top-level viewport grouping"
+  name: string!
+  description_text: string
+  owner: string!
+  rules:
+    role-gate:
+      description: "Only owning team can modify screens"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+
+region:
+  description: "Scoped UI area with own content and events"
+  name: string!
+  parent: ref(screen | region)!
+  rules:
+    nesting-depth:
+      description: "Regions must not nest deeper than 2 levels"
+      severity: warning
+      expr: 'depth(self, "nests") <= 2'
+
+event:
+  description: "User or system action emitted by a region"
+  name: string!
+  emitted_by: ref(region)!
+  annotation: string
+  rules:
+    orphan-emit:
+      description: "Every emitted event must have at least one handler"
+      severity: error
+      expr: 'size(edges_in("handles")) >= 1'
+      example:
+        - [true, { "select-email": { handlers: ["inbox.browsing->detail"] } }]
+        - [false, { "notify-sent": { handlers: [] } }]
+
+transition:
+  description: "State change triggered by event"
+  on: ref(event)!
+  from: string!
+  to: string
+  action: string
+  guard: string
+  rules:
+    unreachable-state:
+      description: "Every non-initial state must be reachable as a transition target"
+      severity: error
+      expr: 'states(self.owner).all(s, s == initial || size(transitions_to(s)) > 0)'
+    duplicate-transition:
+      description: "No two transitions with same event+from_state in same owner"
+      severity: error
+      expr: 'count(siblings(self, on: self.on, from: self.from)) == 1'
+
+flow:
+  description: "Named user journey across screens"
+  name: string!
+  sequence: string!
+  rules:
+    invalid-flow-ref:
+      description: "Flow references must resolve to known screens, regions, or events"
+      severity: error
+      expr: 'self.steps.all(s, exists(s.type, s.target))'
+
+data-type:
+  description: "Domain type with fields"
+  name: string!
+
+nests: "screen|region -> region [0..*]"
+handles: "transition -> event [1..1]"
+emits: "region -> event [0..*]"
+navigates: "transition -> screen [0..1]"
+
+# Global rules
+field-required:
+  description: "Required fields must have non-empty values"
+  severity: error
+  expr: 'self.fields.filter(f, f.required).all(f, len(f.value) > 0)'
+
+enum-valid:
+  description: "Enum fields must contain allowed values"
+  severity: error
+  expr: 'self.fields.filter(f, f.type == "enum").all(f, f.value in f.values)'

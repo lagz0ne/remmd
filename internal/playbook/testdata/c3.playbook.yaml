@@ -1,0 +1,67 @@
+# playbook/1.0
+# C3 Architecture Documentation — constraints for component graphs
+
+component:
+  description: "Functional unit within a container"
+  goal: string!
+  status: enum(active, provisioned, archived)
+  parent: ref(container)!
+  uses: list(ref)
+  owner: string!
+  sections: [Dependencies!, "Related Refs", "Related Rules"]
+  rules:
+    dangling-cite:
+      description: "Every citation must resolve to an existing ref"
+      severity: error
+      expr: 'self.uses.all(u, exists("ref", u))'
+    scope-crosscheck:
+      description: "If ref scopes a container, child components should cite explicitly"
+      severity: warning
+      expr: 'parent_refs(self).all(r, r in self.uses)'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+    no-owner-steal:
+      description: "Only admins can change ownership"
+      severity: error
+      expr: '!has(proposed.owner) || proposed.owner == self.owner || principal.roles.exists(r, r == "admin")'
+
+ref:
+  description: "Cross-cutting architectural pattern or decision"
+  goal: string!
+  status: enum(active, archived)
+  sections: [Choice!, Why!, How]
+  rules:
+    orphan-ref:
+      description: "Every ref must be cited by at least one component"
+      severity: error
+      expr: 'size(edges_in("cites")) >= 1'
+      example:
+        - [true, { "ref-logging": { cited_by: ["cmd-root", "graph"] } }]
+        - [false, { "ref-jwt": { cited_by: [] } }]
+
+rule:
+  description: "Enforceable coding standard with golden example"
+  goal: string!
+  status: enum(active, archived)
+  sections: [Rule!, "Golden Example!", "Not This", Scope, Override]
+
+container:
+  description: "Deployment boundary (process or library)"
+  goal: string!
+  boundary: enum(process, library)
+
+context:
+  description: "System-level boundary"
+  goal: string!
+
+adr:
+  description: "Architectural decision record"
+  goal: string!
+  status: enum(proposed, accepted, implemented, superseded)
+
+cites: "component -> ref [1..*]"
+governs: "rule -> component [0..*]"
+contains: "container -> component [1..*]"
+parent-of: "context -> container [1..*]"

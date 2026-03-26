@@ -15,3 +15,12 @@ npm/node_modules/
 
 # POC workspace
 /poc/
+
+# Build artifacts
+npm/view/dist/
+
+# Brainstorm sessions
+.superpowers/
+
+# Autoresearch
+autoresearch.jsonl
