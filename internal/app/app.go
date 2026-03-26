@@ -17,6 +17,7 @@ type App struct {
 	Relations     *store.RelationRepo
 	Templates     *store.TemplateRepo
 	Playbooks     *store.PlaybookStore
+	Positions     *store.PositionStore
 	Reviews       *core.ReviewService
 	Snapshots     *store.SnapshotService
 }
@@ -44,6 +45,7 @@ func New(dbPath string) (*App, error) {
 		Relations:     store.NewRelationRepo(db),
 		Templates:     store.NewTemplateRepo(db),
 		Playbooks:     store.NewPlaybookStore(db),
+		Positions:     store.NewPositionStore(db),
 		Reviews:       reviews,
 		Snapshots:     snapshots,
 	}, nil

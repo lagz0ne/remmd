@@ -234,6 +234,45 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 		reply(msg, buildValidationResponse(diags))
 	})
 
+	// remmd.q.positions — load saved node positions
+	nc.Subscribe("remmd.q.positions", func(msg *nats.Msg) {
+		ctx := context.Background()
+		positions, err := application.Positions.LoadPositions(ctx)
+		if err != nil {
+			slog.Error("handler: load positions", "error", err)
+			replyErr(msg, err)
+			return
+		}
+		reply(msg, positions)
+	})
+
+	// remmd.c.positions — save node positions
+	nc.Subscribe("remmd.c.positions", func(msg *nats.Msg) {
+		ctx := context.Background()
+		var positions []store.NodePosition
+		if err := json.Unmarshal(msg.Data, &positions); err != nil {
+			replyErr(msg, err)
+			return
+		}
+		if err := application.Positions.SavePositions(ctx, positions); err != nil {
+			slog.Error("handler: save positions", "error", err)
+			replyErr(msg, err)
+			return
+		}
+		reply(msg, map[string]bool{"ok": true})
+	})
+
+	// remmd.c.positions.clear — clear all saved positions
+	nc.Subscribe("remmd.c.positions.clear", func(msg *nats.Msg) {
+		ctx := context.Background()
+		if err := application.Positions.ClearPositions(ctx); err != nil {
+			slog.Error("handler: clear positions", "error", err)
+			replyErr(msg, err)
+			return
+		}
+		reply(msg, map[string]bool{"ok": true})
+	})
+
 	// remmd.q.schema — static schema
 	nc.Subscribe("remmd.q.schema", func(msg *nats.Msg) {
 		reply(msg, map[string]any{
@@ -244,6 +283,9 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 				"remmd.q.graph":                "Full graph: documents as nodes, links as edges",
 				"remmd.q.playbook":             "Active playbook schema (types, fields, sections, rules, edges)",
 				"remmd.q.validate":             "Run playbook validation against all documents",
+				"remmd.q.positions":            "Load saved node positions",
+				"remmd.c.positions":            "Save node positions",
+				"remmd.c.positions.clear":      "Clear all saved positions",
 				"remmd.q.schema":               "This schema",
 				"remmd.doc.*.section.*":        "Event: section changed (docID, ref)",
 			},
