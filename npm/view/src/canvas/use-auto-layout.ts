@@ -1,11 +1,12 @@
 import { Graph, layout } from '@dagrejs/dagre'
 import type { Node, Edge } from '@xyflow/react'
 
-// Use close-zoom dimensions (largest) so nodes never overlap at any zoom
-const NODE_WIDTH = 300
-const NODE_HEIGHT = 350
-const RANK_SEP = 60
-const NODE_SEP = 30
+// Close-view: fixed 280px wide. Plus 20px float overhang each side = 320.
+// Height varies by section count but caps at ~220px CSS.
+const NODE_WIDTH = 320
+const NODE_HEIGHT = 220
+const RANK_SEP = 120
+const NODE_SEP = 80
 
 export function computeAutoLayout(nodes: Node[], edges: Edge[]): Node[] {
   if (nodes.length === 0) return nodes

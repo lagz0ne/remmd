@@ -186,7 +186,7 @@ function MediumView({ data, selected }: { data: DocNodeData; selected?: boolean 
         border: `1.5px solid ${m.borderColor}`,
         borderRadius: 12,
         padding: '16px 20px',
-        minWidth: 170,
+        width: 200,
       }}
     >
       <Handle type="target" position={Position.Left} className="opacity-0" />
@@ -222,8 +222,7 @@ function CloseView({
         border: `1.5px solid ${m.borderColor}`,
         borderRadius: 12,
         padding: '16px 20px',
-        minWidth: 220,
-        maxWidth: 320,
+        width: 280,
       }}
     >
       <Handle type="target" position={Position.Left} className="opacity-0" />
