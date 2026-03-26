@@ -20,8 +20,11 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
   const [layoutApplied, setLayoutApplied] = useState(false)
   const savedPositionsRef = useRef<PositionMap | null>(null)
   const layoutKeyRef = useRef<string>('')
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  nodesRef.current = nodes
+  edgesRef.current = edges
 
-  // Stable identity key -- changes when graph structure changes
   const graphKey = useMemo(
     () =>
       nodes.map((n) => n.id).sort().join(',') +
@@ -30,14 +33,27 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
     [nodes, edges],
   )
 
-  // Load positions and apply layout when graph structure changes
   useEffect(() => {
-    if (nodes.length === 0) return
+    const curNodes = nodesRef.current
+    const curEdges = edgesRef.current
+    if (curNodes.length === 0) return
     if (layoutKeyRef.current === graphKey && layoutApplied) return
 
     layoutKeyRef.current = graphKey
 
     let cancelled = false
+
+    const applyDagre = () => {
+      const positioned = computeAutoLayout(curNodes, curEdges)
+      const posMap = new Map(positioned.map((n) => [n.id, n.position]))
+      setNodes((prev) =>
+        prev.map((node) => {
+          const pos = posMap.get(node.id)
+          if (!pos) return node
+          return { ...node, position: pos }
+        }),
+      )
+    }
 
     ;(async () => {
       try {
@@ -47,10 +63,9 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
 
         const hasPositions =
           saved && Object.keys(saved).length > 0 &&
-          nodes.some((n) => saved[n.id])
+          curNodes.some((n) => saved[n.id])
 
         if (hasPositions) {
-          // Apply saved positions
           setNodes((prev) =>
             prev.map((node) => {
               const pos = saved[node.id]
@@ -59,30 +74,12 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
             }),
           )
         } else {
-          // No saved positions -- run dagre
-          const positioned = computeAutoLayout(nodes, edges)
-          if (cancelled) return
-          const posMap = new Map(positioned.map((n) => [n.id, n.position]))
-          setNodes((prev) =>
-            prev.map((node) => {
-              const pos = posMap.get(node.id)
-              if (!pos) return node
-              return { ...node, position: pos }
-            }),
-          )
+          applyDagre()
         }
         setLayoutApplied(true)
       } catch {
-        // NATS not available -- fall back to dagre
         if (cancelled) return
-        const positioned = computeAutoLayout(nodes, edges)
-        setNodes((prev) =>
-          prev.map((node) => {
-            const layoutNode = positioned.find((n) => n.id === node.id)
-            if (!layoutNode) return node
-            return { ...node, position: layoutNode.position }
-          }),
-        )
+        applyDagre()
         setLayoutApplied(true)
       }
     })()
@@ -90,7 +87,7 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
     return () => {
       cancelled = true
     }
-  }, [graphKey, nodes, edges, setNodes, layoutApplied])
+  }, [graphKey, setNodes, layoutApplied])
 
   const onNodeDragStart: (_: unknown, node: Node) => void = useCallback(() => {
     // No-op -- just keeping the interface consistent

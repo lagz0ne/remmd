@@ -142,7 +142,6 @@ function Canvas() {
               validationErrors={selectedNode.data.validationErrors || []}
               validationPassing={selectedNode.data.validationPassing || 0}
               validationTotal={selectedNode.data.validationTotal || 0}
-              onClose={panel.close}
             />
           )}
 

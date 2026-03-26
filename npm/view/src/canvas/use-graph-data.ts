@@ -151,7 +151,7 @@ export function transformGraph(
 
   const bundles = new Map<string, GraphEdge[]>()
   for (const e of raw.edges) {
-    const key = [e.source_doc_id, e.target_doc_id].sort().join('::')
+    const key = `${e.source_doc_id}::${e.target_doc_id}`
     if (!bundles.has(key)) bundles.set(key, [])
     bundles.get(key)!.push(e)
   }

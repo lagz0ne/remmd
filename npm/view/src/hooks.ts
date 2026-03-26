@@ -22,6 +22,7 @@ export function useNatsInvalidation() {
 
       queryClient.invalidateQueries({ queryKey: ['sections', docId] })
       queryClient.invalidateQueries({ queryKey: ['graph'] })
+      queryClient.invalidateQueries({ queryKey: ['validation'] })
     }).then(fn => { unsub = fn })
 
     return () => { unsub?.() }

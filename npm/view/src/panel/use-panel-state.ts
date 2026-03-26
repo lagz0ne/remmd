@@ -28,12 +28,12 @@ export function usePanelState() {
   }, [])
 
   const selectEdge = useCallback((edgeId: string, sourceDocId: string) => {
-    setState((prev) => ({
+    setState({
       mode: 'edge',
-      selectedNodeId: prev.selectedNodeId || sourceDocId,
+      selectedNodeId: sourceDocId,
       selectedEdgeId: edgeId,
       columns: 2,
-    }))
+    })
   }, [])
 
   const close = useCallback(() => {

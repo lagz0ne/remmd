@@ -4,7 +4,6 @@ import {
   WarningCircleIcon,
   CaretDownIcon,
   CaretUpIcon,
-  XIcon,
 } from '@phosphor-icons/react'
 import { validationBg, validationBorder, validationText, stateColor } from '../theme/colors'
 import { useSections } from '../hooks'
@@ -17,7 +16,6 @@ interface GapPanelProps {
   validationErrors: { rule: string; message: string }[]
   validationPassing: number
   validationTotal: number
-  onClose: () => void
 }
 
 const STORAGE_KEY = 'remmd-passing-collapsed'
@@ -38,7 +36,6 @@ export function GapPanel({
   validationErrors,
   validationPassing,
   validationTotal,
-  onClose,
 }: GapPanelProps) {
   const [passingCollapsed, setPassingCollapsed] = useState(readCollapsed)
   const { data: sectionsData } = useSections(docId)
@@ -90,17 +87,9 @@ export function GapPanel({
             )}
           </div>
 
-          <div className="flex items-center justify-between mt-1">
-            <h2 className="text-[14px] font-semibold text-zinc-900">
-              {docTitle}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-700 p-0.5"
-            >
-              <XIcon size={14} weight="light" />
-            </button>
-          </div>
+          <h2 className="text-[14px] font-semibold text-zinc-900 mt-1">
+            {docTitle}
+          </h2>
 
           <div className="text-[10px] text-zinc-400 mt-0.5">
             owner: {owner}
@@ -177,11 +166,11 @@ export function GapPanel({
               Content
             </div>
             <div className="space-y-2">
-              {sections.map((s: any) => (
+              {sections.map((s: { ref: string; title: string; content?: string; state?: string; kind?: string }) => (
                 <div key={s.ref} className="flex gap-2">
                   <div
                     className="w-0.5 rounded-full shrink-0"
-                    style={{ background: stateColor[s.state] || '#e4e4e7', minHeight: 16 }}
+                    style={{ background: stateColor[s.state ?? ''] || '#e4e4e7', minHeight: 16 }}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
