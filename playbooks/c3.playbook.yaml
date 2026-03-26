@@ -1,0 +1,145 @@
+# playbook/1.0
+# C3 — Architecture documentation as enforceable knowledge base
+
+context:
+  description: "System-level boundary — the top of the hierarchy"
+  goal: string!
+  status: enum(active, archived)
+  sections: [Goal!, Containers!, "Abstract Constraints!"]
+  rules:
+    needs-containers:
+      description: "A context must define at least one container"
+      severity: error
+      expr: 'size(edges_out("contains")) >= 1'
+
+container:
+  description: "Deployment boundary — process, library, or service"
+  goal: string!
+  boundary: enum(process, library, service)
+  parent: ref(context)!
+  status: enum(active, archived)
+  sections: [Goal!, Components!, Responsibilities!]
+  rules:
+    needs-components:
+      description: "A container must have at least one component"
+      severity: error
+      expr: 'size(edges_out("contains")) >= 1'
+    has-responsibilities:
+      description: "Container must describe what it is accountable for"
+      severity: warning
+      expr: 'self.responsibilities != ""'
+
+component:
+  description: "Functional unit within a container"
+  goal: string!
+  category: enum(foundation, feature)
+  parent: ref(container)!
+  owner: string!
+  status: enum(active, provisioned, archived)
+  sections: [Goal!, Dependencies!, "Related Refs", "Related Rules", "Container Connection"]
+  rules:
+    must-cite-ref:
+      description: "Every component should cite at least one cross-cutting ref"
+      severity: warning
+      expr: 'size(edges_out("cites")) >= 1'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+    no-owner-steal:
+      description: "Only admins can reassign ownership"
+      severity: error
+      expr: '!has(proposed.owner) || proposed.owner == self.owner || principal.roles.exists(r, r == "admin")'
+
+ref:
+  description: "Cross-cutting architectural pattern or decision"
+  goal: string!
+  owner: string!
+  status: enum(active, archived)
+  sections: [Goal!, Choice!, Why!, How]
+  rules:
+    orphan-ref:
+      description: "Every ref must be cited by at least one component"
+      severity: error
+      expr: 'size(edges_in("cites")) >= 1'
+      example:
+        - [true, { "ref-logging": { cited_by: ["cmd-root", "graph"] } }]
+        - [false, { "ref-jwt": { cited_by: [] } }]
+    scope-crosscheck:
+      description: "If ref scopes a container, child components should cite it explicitly"
+      severity: warning
+      expr: 'size(edges_out("scopes")) == 0 || edges_out("scopes").all(c, size(c.children.filter(ch, ch.uses.exists(u, u == self.id))) > 0)'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+
+rule:
+  description: "Enforceable coding standard with golden example"
+  goal: string!
+  owner: string!
+  origin: ref(ref)
+  status: enum(active, archived)
+  sections: [Goal!, Rule!, "Golden Example!", "Not This", Scope, Override]
+  rules:
+    has-origin:
+      description: "Every rule must originate from a ref or ADR"
+      severity: error
+      expr: 'self.origin != ""'
+    has-golden-example:
+      description: "Rules must have a concrete golden example"
+      severity: error
+      expr: 'self.golden_example != ""'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+
+adr:
+  description: "Architectural decision record — ephemeral work order"
+  goal: string!
+  status: enum(proposed, accepted, implemented, superseded)
+  date: string!
+  affects: list(string)
+  sections: [Goal!]
+  rules:
+    has-affects:
+      description: "ADR must declare what entities it affects"
+      severity: warning
+      expr: 'size(self.affects) > 0'
+
+recipe:
+  description: "Cross-cutting concern trace — how a flow crosses components"
+  goal: string!
+  sources: list(string)
+  sections: [Goal!]
+  rules:
+    has-sources:
+      description: "Recipe must reference at least one source entity"
+      severity: warning
+      expr: 'size(self.sources) > 0'
+
+# Edges — structural hierarchy
+contains-ctx: "context -> container [1..*]"
+contains-ctr: "container -> component [1..*]"
+
+# Edges — cross-cutting references
+cites: "component -> ref [0..*]"
+governs: "rule -> component [0..*]"
+scopes: "ref -> container [0..*]"
+originates: "rule -> ref [1..1]"
+
+# Edges — decision tracking
+decides: "adr -> component [0..*]"
+traces: "recipe -> component [0..*]"
+
+# Global rules
+field-required:
+  description: "Required fields must have non-empty values"
+  severity: error
+  expr: 'self._required_fields.all(f, has(self[f]) && self[f] != "")'
+
+section-required:
+  description: "Required sections must have non-empty content"
+  severity: error
+  expr: 'self._required_sections.all(s, has(self[s]) && self[s] != "")'

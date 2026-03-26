@@ -1,0 +1,175 @@
+# playbook/1.0
+# SFT — Behavioral specification for UI screens, regions, events, and flows
+
+app:
+  description: "Top-level application container — singleton per project"
+  name: string!
+  description_text: string!
+  sections: [Context, "Data Types", Enums]
+
+screen:
+  description: "Top-level viewport grouping"
+  name: string!
+  description_text: string!
+  app: ref(app)!
+  owner: string!
+  tags: list(string)
+  sections: [Context, States, "State Fixtures", "State Regions"]
+  rules:
+    has-description:
+      description: "Every screen must have a description"
+      severity: error
+      expr: 'self.description_text != ""'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+
+region:
+  description: "Scoped UI building block — nestable, emits events"
+  name: string!
+  description_text: string!
+  parent: ref(screen | region)!
+  owner: string!
+  tags: list(string)
+  sections: [Events, Ambient, "Region Data", States, "State Fixtures", "State Regions"]
+  rules:
+    has-description:
+      description: "Every region must have a description"
+      severity: error
+      expr: 'self.description_text != ""'
+    nesting-depth:
+      description: "Regions must not nest deeper than 3 levels"
+      severity: warning
+      expr: 'depth(self, "nests") <= 3'
+    edit-scope:
+      description: "Only owning team or admins can edit"
+      severity: error
+      expr: 'self.owner in principal.teams || principal.roles.exists(r, r == "admin")'
+
+event:
+  description: "User or system action emitted by a region"
+  name: string!
+  region: ref(region)!
+  annotation: string
+  rules:
+    orphan-emit:
+      description: "Every emitted event must have at least one handler (transition)"
+      severity: error
+      expr: 'size(edges_in("handles")) >= 1'
+      example:
+        - [true, { "select-email": { handlers: ["inbox.browsing->detail"] } }]
+        - [false, { "notify-sent": { handlers: [] } }]
+    valid-annotation:
+      description: "Event annotation type must be a known scalar, data type, or enum"
+      severity: warning
+      expr: 'self.annotation == "" || self.annotation in ["string", "number", "boolean", "date", "datetime"] || node_exists("data-type", self.annotation) || node_exists("enum", self.annotation)'
+
+transition:
+  description: "State machine edge — triggered by event, changes state"
+  on_event: string!
+  owner_type: enum(app, screen, region)
+  owner_id: string!
+  from_state: string
+  to_state: string
+  action: string
+  guard: string
+  rules:
+    unreachable-state:
+      description: "Every non-initial state must be reachable as a transition target"
+      severity: error
+      expr: 'self.from_state == self._initial_state || size(edges_in("targets")) > 0'
+    duplicate-transition:
+      description: "No two transitions with same event + from_state in the same owner (unless guarded)"
+      severity: error
+      expr: 'self.guard != "" || count(siblings(self, on_event: self.on_event, from_state: self.from_state)) == 1'
+    dangling-navigate:
+      description: "navigate() targets must reference an existing screen or region"
+      severity: error
+      expr: '!self.action.startsWith("navigate(") || node_exists("screen", self._navigate_target) || node_exists("region", self._navigate_target)'
+    orphan-event-handler:
+      description: "Transition handles event that no region emits"
+      severity: warning
+      expr: 'size(edges_out("handles").filter(e, size(e.emitters) > 0)) > 0'
+
+flow:
+  description: "Named user journey across screens — scenario sequence"
+  name: string!
+  description_text: string
+  app: ref(app)!
+  starts: ref(screen)
+  steps: list(string)
+  rules:
+    invalid-flow-ref:
+      description: "Flow steps must reference existing screens, regions, or events"
+      severity: error
+      expr: 'self.steps.all(s, node_exists("screen", s) || node_exists("region", s) || node_exists("event", s))'
+    has-steps:
+      description: "Flow must have at least one step"
+      severity: error
+      expr: 'size(self.steps) > 0'
+
+data-type:
+  description: "Named data structure with typed fields"
+  name: string!
+  app: ref(app)!
+  fields: list(string)
+
+enum-type:
+  description: "Named value set"
+  name: string!
+  app: ref(app)!
+  values: list(string)
+  rules:
+    no-name-collision:
+      description: "Enum name must not collide with a data type name"
+      severity: warning
+      expr: '!node_exists("data-type", self.name)'
+
+fixture:
+  description: "Sample data snapshot bound to a state"
+  name: string!
+  app: ref(app)!
+  extends: ref(fixture)
+  data: string!
+  rules:
+    orphan-fixture:
+      description: "Fixture should be referenced by at least one state binding"
+      severity: warning
+      expr: 'size(edges_in("binds")) >= 1'
+
+# Edges — structural hierarchy
+belongs-to-app: "screen -> app [1..1]"
+nests: "screen|region -> region [0..*]"
+
+# Edges — event system
+emits: "region -> event [0..*]"
+handles: "transition -> event [1..1]"
+
+# Edges — state machine
+targets: "transition -> transition [0..*]"
+
+# Edges — navigation
+navigates: "transition -> screen [0..1]"
+
+# Edges — data
+binds: "fixture -> screen|region [0..*]"
+
+# Edges — flows
+traces-flow: "flow -> screen [0..*]"
+
+# Global rules
+field-required:
+  description: "Required fields must have non-empty values"
+  severity: error
+  expr: 'self._required_fields.all(f, has(self[f]) && self[f] != "")'
+
+unique-screen-name:
+  description: "Screen names must be globally unique"
+  severity: error
+  expr: 'self._type != "screen" || count(nodes_of_type("screen").filter(s, s.name == self.name)) == 1'
+
+unique-flow-name:
+  description: "Flow names must be globally unique"
+  severity: error
+  expr: 'self._type != "flow" || count(nodes_of_type("flow").filter(f, f.name == self.name)) == 1'
