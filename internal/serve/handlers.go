@@ -177,7 +177,10 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 			}
 			return sec.DocID, nil
 		}
-		reply(msg, buildGraphResponse(ctx, docs, links, resolver))
+		sectionLister := func(ctx context.Context, docID string) ([]*core.Section, error) {
+			return application.Docs.ListSections(ctx, docID)
+		}
+		reply(msg, buildGraphResponse(ctx, docs, links, resolver, sectionLister))
 	})
 
 	// remmd.q.playbook — active playbook schema
@@ -363,11 +366,13 @@ type graphResponse struct {
 }
 
 type graphNode struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Status  string `json:"status"`
-	Source  string `json:"source"`
-	DocType string `json:"doc_type"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Status       string `json:"status"`
+	Source       string `json:"source"`
+	DocType      string `json:"doc_type"`
+	Brief        string `json:"brief"`
+	SectionCount int    `json:"section_count"`
 }
 
 type graphEdge struct {
@@ -383,16 +388,29 @@ type graphEdge struct {
 // buildGraphResponse constructs the graph payload from documents and links.
 // For each link, it resolves the first left section to a source doc and the
 // first right section to a target doc. Links with unresolvable sections are skipped.
-func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*core.Link, resolve sectionDocResolver) graphResponse {
+type sectionLister func(ctx context.Context, docID string) ([]*core.Section, error)
+
+func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*core.Link, resolve sectionDocResolver, listSections sectionLister) graphResponse {
 	nodes := make([]graphNode, 0, len(docs))
 	for _, d := range docs {
-		nodes = append(nodes, graphNode{
+		gn := graphNode{
 			ID:      d.ID,
 			Title:   d.Title,
 			Status:  string(d.Status),
 			Source:  d.Source,
 			DocType: d.DocType,
-		})
+		}
+		if sections, err := listSections(ctx, d.ID); err == nil {
+			gn.SectionCount = len(sections)
+			if len(sections) > 0 && sections[0].Content != "" {
+				brief := sections[0].Content
+				if len(brief) > 120 {
+					brief = brief[:120] + "..."
+				}
+				gn.Brief = brief
+			}
+		}
+		nodes = append(nodes, gn)
 	}
 
 	edges := make([]graphEdge, 0, len(links))

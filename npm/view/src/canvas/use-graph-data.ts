@@ -16,6 +16,8 @@ interface GraphNode {
   status: string
   source: string
   doc_type: string
+  brief: string
+  section_count: number
 }
 
 interface GraphEdge {
@@ -131,11 +133,11 @@ export function transformGraph(
         status: n.status,
         source: n.source,
         worstState,
-        sectionCount: 0,
+        sectionCount: n.section_count || 0,
         edgeCounts,
         playbookType,
         owner: '',
-        brief: '',
+        brief: n.brief || '',
         validationPassing,
         validationTotal,
         validationErrors: nodeErrors,

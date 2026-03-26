@@ -241,29 +241,40 @@ function CloseView({
                 id: string
                 ref: string
                 title: string
+                content?: string
                 link_state?: string
                 missing?: boolean
               }) => (
                 <div
                   key={s.id}
-                  className="flex items-center gap-1.5 text-xs text-zinc-600"
+                  className="flex gap-1.5 text-xs text-zinc-600"
                 >
                   <span
-                    className="w-0.5 h-4 rounded-full shrink-0"
+                    className="w-0.5 rounded-full shrink-0 mt-0.5"
                     style={{
                       background: s.link_state
                         ? stateColor[s.link_state] || '#e4e4e7'
                         : '#e4e4e7',
+                      minHeight: 16,
                     }}
                   />
-                  {(s as { missing?: boolean }).missing ? (
-                    <span className="italic text-zinc-400">
-                      {s.title || s.ref}{' '}
-                      <span className="text-[9px] text-zinc-300">missing</span>
-                    </span>
-                  ) : (
-                    <span className="truncate">{s.title || s.ref}</span>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    {(s as { missing?: boolean }).missing ? (
+                      <span className="italic text-zinc-400">
+                        {s.title || s.ref}{' '}
+                        <span className="text-[9px] text-zinc-300">missing</span>
+                      </span>
+                    ) : (
+                      <>
+                        <div className="text-[11px] font-medium text-zinc-700 truncate">{s.title || s.ref}</div>
+                        {s.content && s.content !== s.title && (
+                          <div className="text-[10px] text-zinc-400 line-clamp-2 mt-0.5 leading-relaxed">
+                            {s.content}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ),
             )}

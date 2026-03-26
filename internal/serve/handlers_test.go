@@ -82,7 +82,7 @@ func TestBuildGraphResponse(t *testing.T) {
 	}
 
 	t.Run("empty graph", func(t *testing.T) {
-		resp := buildGraphResponse(context.Background(), nil, nil, resolver)
+		resp := buildGraphResponse(context.Background(), nil, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Nodes) != 0 {
 			t.Errorf("expected 0 nodes, got %d", len(resp.Nodes))
 		}
@@ -96,7 +96,7 @@ func TestBuildGraphResponse(t *testing.T) {
 			{ID: "doc-1", Title: "Design", Status: core.DocumentActive, Source: "native"},
 			{ID: "doc-2", Title: "Spec", Status: core.DocumentArchived, Source: "git"},
 		}
-		resp := buildGraphResponse(context.Background(), docs, nil, resolver)
+		resp := buildGraphResponse(context.Background(), docs, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Nodes) != 2 {
 			t.Fatalf("expected 2 nodes, got %d", len(resp.Nodes))
 		}
@@ -125,7 +125,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkAligned,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver)
+		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 1 {
 			t.Fatalf("expected 1 edge, got %d", len(resp.Edges))
 		}
@@ -160,7 +160,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkBroken,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver)
+		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 0 {
 			t.Errorf("expected broken link with missing section to be skipped, got %d edges", len(resp.Edges))
 		}
@@ -180,7 +180,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkPending,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver)
+		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 1 {
 			t.Fatalf("expected 1 edge, got %d", len(resp.Edges))
 		}
