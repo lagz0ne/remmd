@@ -11,6 +11,7 @@ import {
   type EdgeMouseHandler,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 
 import { useNatsInvalidation } from './hooks'
 import { useGraphData } from './canvas/use-graph-data'
@@ -34,7 +35,7 @@ const edgeTypes = { bundled: BundledEdge }
 function Canvas() {
   useNatsInvalidation()
   const { nodes, edges, isLoading } = useGraphData()
-  const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useForceLayout(nodes, edges)
+  const { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout } = useForceLayout(nodes, edges)
   const panel = usePanelState()
   const { data: pb } = usePlaybook()
   const playbookTypes = pb?.types ? pb.types.map(t => t.name) : []
@@ -118,6 +119,16 @@ function Canvas() {
           className="!border-zinc-200 !bg-white/90 !shadow-sm"
           style={{ marginBottom: 140 }}
         />
+        <div className="absolute bottom-2 left-14 z-10" style={{ marginBottom: 140 }}>
+          <button
+            onClick={resetLayout}
+            className="flex items-center gap-1 px-2 py-1.5 text-xs text-zinc-500 bg-white/90 border border-zinc-200 rounded shadow-sm hover:bg-zinc-50 hover:text-zinc-700 transition-colors"
+            title="Re-layout nodes"
+          >
+            <ArrowClockwiseIcon size={14} />
+            Re-layout
+          </button>
+        </div>
         <Legend types={playbookTypes} />
 
         <PanelShell mode={panel.mode} columns={panel.columns} onClose={panel.close}>

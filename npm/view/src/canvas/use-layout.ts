@@ -1,117 +1,137 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow, type Node, type Edge } from '@xyflow/react'
-import {
-  forceSimulation,
-  forceLink,
-  forceManyBody,
-  forceCenter,
-  forceCollide,
-  type SimulationNodeDatum,
-  type SimulationLinkDatum,
-} from 'd3-force'
+import { natsRequest } from '../nats'
+import { computeAutoLayout } from './use-auto-layout'
 
-interface SimNode extends SimulationNodeDatum {
-  id: string
-  width: number
-  height: number
+interface PositionMap {
+  [nodeId: string]: { node_id: string; x: number; y: number }
 }
 
-interface SimLink extends SimulationLinkDatum<SimNode> {
-  id: string
-}
-
-const NODE_WIDTH = 200
-const NODE_HEIGHT = 80
-
+/**
+ * Orchestrates node layout:
+ * 1. On load: fetch saved positions via NATS
+ * 2. If saved positions exist: apply them
+ * 3. If not: run dagre auto-layout
+ * 4. On drag stop: persist the dragged node's position
+ * 5. Exposes resetLayout() to re-run dagre and clear saved positions
+ */
 export function useForceLayout(nodes: Node[], edges: Edge[]) {
   const { setNodes } = useReactFlow()
-  const simRef = useRef<ReturnType<typeof forceSimulation<SimNode>> | null>(null)
-  const draggingRef = useRef<string | null>(null)
+  const [layoutApplied, setLayoutApplied] = useState(false)
+  const savedPositionsRef = useRef<PositionMap | null>(null)
+  const layoutKeyRef = useRef<string>('')
 
-  // Stable identity key — changes when the graph structure actually changes
+  // Stable identity key -- changes when graph structure changes
   const graphKey = useMemo(
-    () => nodes.map((n) => n.id).sort().join(',') + '|' + edges.map((e) => e.id).sort().join(','),
+    () =>
+      nodes.map((n) => n.id).sort().join(',') +
+      '|' +
+      edges.map((e) => e.id).sort().join(','),
     [nodes, edges],
   )
 
+  // Load positions and apply layout when graph structure changes
   useEffect(() => {
     if (nodes.length === 0) return
+    if (layoutKeyRef.current === graphKey && layoutApplied) return
 
-    const simNodes: SimNode[] = nodes.map((n) => ({
-      id: n.id,
-      x: n.position.x || Math.random() * 800,
-      y: n.position.y || Math.random() * 600,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-    }))
+    layoutKeyRef.current = graphKey
 
-    const nodeMap = new Map(simNodes.map((sn) => [sn.id, sn]))
+    let cancelled = false
 
-    const simLinks: SimLink[] = edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-    }))
+    ;(async () => {
+      try {
+        const saved = await natsRequest<PositionMap>('remmd.q.positions')
+        if (cancelled) return
+        savedPositionsRef.current = saved
 
-    const sim = forceSimulation<SimNode>(simNodes)
-      .force(
-        'link',
-        forceLink<SimNode, SimLink>(simLinks)
-          .id((d) => d.id)
-          .distance(350),
-      )
-      .force('charge', forceManyBody().strength(-1200))
-      .force('center', forceCenter(0, 0))
-      .force(
-        'collide',
-        forceCollide<SimNode>().radius((d) => Math.max(d.width, d.height) / 2 + 40),
-      )
-      .alphaDecay(0.02)
-      .on('tick', () => {
+        const hasPositions =
+          saved && Object.keys(saved).length > 0 &&
+          nodes.some((n) => saved[n.id])
+
+        if (hasPositions) {
+          // Apply saved positions
+          setNodes((prev) =>
+            prev.map((node) => {
+              const pos = saved[node.id]
+              if (!pos) return node
+              return { ...node, position: { x: pos.x, y: pos.y } }
+            }),
+          )
+        } else {
+          // No saved positions -- run dagre
+          const positioned = computeAutoLayout(nodes, edges)
+          if (cancelled) return
+          setNodes((prev) =>
+            prev.map((node) => {
+              const layoutNode = positioned.find((n) => n.id === node.id)
+              if (!layoutNode) return node
+              return { ...node, position: layoutNode.position }
+            }),
+          )
+        }
+        setLayoutApplied(true)
+      } catch {
+        // NATS not available -- fall back to dagre
+        if (cancelled) return
+        const positioned = computeAutoLayout(nodes, edges)
         setNodes((prev) =>
           prev.map((node) => {
-            if (node.id === draggingRef.current) return node
-            const simNode = nodeMap.get(node.id)
-            if (!simNode || simNode.x == null || simNode.y == null) return node
-            return { ...node, position: { x: simNode.x, y: simNode.y } }
+            const layoutNode = positioned.find((n) => n.id === node.id)
+            if (!layoutNode) return node
+            return { ...node, position: layoutNode.position }
           }),
         )
-      })
-
-    simRef.current = sim
+        setLayoutApplied(true)
+      }
+    })()
 
     return () => {
-      sim.stop()
-      simRef.current = null
+      cancelled = true
     }
-  }, [graphKey, setNodes])
+  }, [graphKey, nodes, edges, setNodes, layoutApplied])
 
-  const onNodeDragStart = useCallback((_: unknown, node: Node) => {
-    draggingRef.current = node.id
-    simRef.current?.alphaTarget(0.3).restart()
+  const onNodeDragStart: (_: unknown, node: Node) => void = useCallback(() => {
+    // No-op -- just keeping the interface consistent
   }, [])
 
-  const onNodeDrag = useCallback((_: unknown, node: Node) => {
-    const sim = simRef.current
-    if (!sim) return
-    const simNode = sim.nodes().find((sn) => sn.id === node.id)
-    if (simNode) {
-      simNode.fx = node.position.x
-      simNode.fy = node.position.y
-    }
+  const onNodeDrag: (_: unknown, node: Node) => void = useCallback(() => {
+    // No-op -- ReactFlow handles visual position during drag
   }, [])
 
-  const onNodeDragStop = useCallback((_: unknown, node: Node) => {
-    draggingRef.current = null
-    const sim = simRef.current
-    if (!sim) return
-    const simNode = sim.nodes().find((sn) => sn.id === node.id)
-    if (simNode) {
-      simNode.fx = null
-      simNode.fy = null
-    }
-    sim.alphaTarget(0)
-  }, [])
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      // Persist the dragged node's position
+      const position = {
+        node_id: node.id,
+        x: node.position.x,
+        y: node.position.y,
+      }
+      natsRequest('remmd.c.positions', [position]).catch(() => {
+        // Silently ignore save failures
+      })
+    },
+    [],
+  )
 
-  return { onNodeDragStart, onNodeDrag, onNodeDragStop }
+  const resetLayout = useCallback(() => {
+    if (nodes.length === 0) return
+
+    // Clear saved positions server-side
+    natsRequest('remmd.c.positions.clear').catch(() => {})
+
+    // Re-run dagre layout
+    const positioned = computeAutoLayout(nodes, edges)
+    setNodes((prev) =>
+      prev.map((node) => {
+        const layoutNode = positioned.find((n) => n.id === node.id)
+        if (!layoutNode) return node
+        return { ...node, position: layoutNode.position }
+      }),
+    )
+
+    savedPositionsRef.current = null
+  }, [nodes, edges, setNodes])
+
+  return { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout }
 }
