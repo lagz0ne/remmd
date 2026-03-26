@@ -1,10 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow, type Node, type Edge } from '@xyflow/react'
 import { natsRequest } from '../nats'
-import { computeAutoLayout } from './use-auto-layout'
+import { computeAutoLayout, LAYOUT_NODE_WIDTH, LAYOUT_NODE_HEIGHT } from './use-auto-layout'
 
 interface PositionMap {
   [nodeId: string]: { node_id: string; x: number; y: number }
+}
+
+function hasOverlaps(positions: { x: number; y: number }[]): boolean {
+  const w = LAYOUT_NODE_WIDTH
+  const h = LAYOUT_NODE_HEIGHT
+  for (let i = 0; i < positions.length; i++) {
+    for (let j = i + 1; j < positions.length; j++) {
+      const a = positions[i], b = positions[j]
+      if (
+        a.x < b.x + w && a.x + w > b.x &&
+        a.y < b.y + h && a.y + h > b.y
+      ) return true
+    }
+  }
+  return false
 }
 
 /**
@@ -65,15 +80,10 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
           saved && Object.keys(saved).length > 0 &&
           curNodes.some((n) => saved[n.id])
 
-        if (hasPositions) {
-          setNodes((prev) =>
-            prev.map((node) => {
-              const pos = saved[node.id]
-              if (!pos) return node
-              return { ...node, position: { x: pos.x, y: pos.y } }
-            }),
-          )
-        } else {
+        // Always run dagre for consistent non-overlapping layout.
+        // Saved positions are only applied for individual node drags,
+        // not for full graph layout — prevents stale overlapping positions.
+        {
           applyDagre()
         }
         setLayoutApplied(true)

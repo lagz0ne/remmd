@@ -3,10 +3,16 @@ import type { Node, Edge } from '@xyflow/react'
 
 // Close-view: fixed 280px wide. Plus 20px float overhang each side = 320.
 // Height varies by section count but caps at ~220px CSS.
-const NODE_WIDTH = 320
-const NODE_HEIGHT = 220
-const RANK_SEP = 120
-const NODE_SEP = 80
+// These are the bounding box sizes dagre uses for collision avoidance.
+// Must be >= the largest rendered node at any zoom level.
+// Close-view: 280px content + 40px float overhang = 320px wide
+// Close-view: ~200px content + 28px float overhang = 228px tall
+export const LAYOUT_NODE_WIDTH = 340
+export const LAYOUT_NODE_HEIGHT = 240
+const NODE_WIDTH = LAYOUT_NODE_WIDTH
+const NODE_HEIGHT = LAYOUT_NODE_HEIGHT
+const RANK_SEP = 140
+const NODE_SEP = 100
 
 export function computeAutoLayout(nodes: Node[], edges: Edge[]): Node[] {
   if (nodes.length === 0) return nodes
