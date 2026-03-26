@@ -2,8 +2,8 @@ import { useStore } from '@xyflow/react'
 
 export type ZoomLevel = 'far' | 'medium' | 'close'
 
-const FAR_THRESHOLD = 0.5
-const CLOSE_THRESHOLD = 0.75
+const FAR_THRESHOLD = 0.4
+const CLOSE_THRESHOLD = 1.0
 
 export function useZoomLevel(): ZoomLevel {
   return useStore((s) => {
