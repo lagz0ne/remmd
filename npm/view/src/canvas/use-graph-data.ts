@@ -125,7 +125,7 @@ export function transformGraph(
     return {
       id: n.id,
       type: 'document',
-      position: { x: 0, y: 0 },
+      position: { x: (Math.random() - 0.5) * 800, y: (Math.random() - 0.5) * 600 },
       data: {
         title: n.title,
         status: n.status,
