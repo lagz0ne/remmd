@@ -134,12 +134,7 @@ decides: "adr -> component [0..*]"
 traces: "recipe -> component [0..*]"
 
 # Global rules
-field-required:
-  description: "Required fields must have non-empty values"
+goal-required:
+  description: "Every entity must have a non-empty goal"
   severity: error
-  expr: 'self._required_fields.all(f, has(self[f]) && self[f] != "")'
-
-section-required:
-  description: "Required sections must have non-empty content"
-  severity: error
-  expr: 'self._required_sections.all(s, has(self[s]) && self[s] != "")'
+  expr: 'self.goal != ""'

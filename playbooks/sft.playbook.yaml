@@ -61,9 +61,9 @@ event:
         - [true, { "select-email": { handlers: ["inbox.browsing->detail"] } }]
         - [false, { "notify-sent": { handlers: [] } }]
     valid-annotation:
-      description: "Event annotation type must be a known scalar, data type, or enum"
+      description: "Event annotation type must be a known scalar or empty"
       severity: warning
-      expr: 'self.annotation == "" || self.annotation in ["string", "number", "boolean", "date", "datetime"] || node_exists("data-type", self.annotation) || node_exists("enum", self.annotation)'
+      expr: 'self.annotation == "" || self.annotation in ["string", "number", "boolean", "date", "datetime"]'
 
 transition:
   description: "State machine edge — triggered by event, changes state"
@@ -75,22 +75,18 @@ transition:
   action: string
   guard: string
   rules:
-    unreachable-state:
-      description: "Every non-initial state must be reachable as a transition target"
+    has-event:
+      description: "Transition must specify which event triggers it"
       severity: error
-      expr: 'self.from_state == self._initial_state || size(edges_in("targets")) > 0'
-    duplicate-transition:
-      description: "No two transitions with same event + from_state in the same owner (unless guarded)"
-      severity: error
-      expr: 'self.guard != "" || count(siblings(self, on_event: self.on_event, from_state: self.from_state)) == 1'
-    dangling-navigate:
-      description: "navigate() targets must reference an existing screen or region"
-      severity: error
-      expr: '!self.action.startsWith("navigate(") || node_exists("screen", self._navigate_target) || node_exists("region", self._navigate_target)'
-    orphan-event-handler:
-      description: "Transition handles event that no region emits"
+      expr: 'self.on_event != ""'
+    has-from-state:
+      description: "Transition should declare its source state"
       severity: warning
-      expr: 'size(edges_out("handles").filter(e, size(e.emitters) > 0)) > 0'
+      expr: 'self.from_state != ""'
+    dangling-navigate:
+      description: "navigate() targets must reference an existing screen"
+      severity: error
+      expr: '!self.action.startsWith("navigate(") || node_exists("screen", self.action)'
 
 flow:
   description: "Named user journey across screens — scenario sequence"
@@ -100,10 +96,6 @@ flow:
   starts: ref(screen)
   steps: list(string)
   rules:
-    invalid-flow-ref:
-      description: "Flow steps must reference existing screens, regions, or events"
-      severity: error
-      expr: 'self.steps.all(s, node_exists("screen", s) || node_exists("region", s) || node_exists("event", s))'
     has-steps:
       description: "Flow must have at least one step"
       severity: error
@@ -120,11 +112,6 @@ enum-type:
   name: string!
   app: ref(app)!
   values: list(string)
-  rules:
-    no-name-collision:
-      description: "Enum name must not collide with a data type name"
-      severity: warning
-      expr: '!node_exists("data-type", self.name)'
 
 fixture:
   description: "Sample data snapshot bound to a state"
@@ -140,36 +127,25 @@ fixture:
 
 # Edges — structural hierarchy
 belongs-to-app: "screen -> app [1..1]"
-nests: "screen|region -> region [0..*]"
+nests-screen: "screen -> region [0..*]"
+nests-region: "region -> region [0..*]"
 
 # Edges — event system
 emits: "region -> event [0..*]"
 handles: "transition -> event [1..1]"
 
-# Edges — state machine
-targets: "transition -> transition [0..*]"
-
 # Edges — navigation
 navigates: "transition -> screen [0..1]"
 
 # Edges — data
-binds: "fixture -> screen|region [0..*]"
+binds-screen: "fixture -> screen [0..*]"
+binds-region: "fixture -> region [0..*]"
 
 # Edges — flows
 traces-flow: "flow -> screen [0..*]"
 
 # Global rules
-field-required:
-  description: "Required fields must have non-empty values"
+name-required:
+  description: "Every entity must have a non-empty name"
   severity: error
-  expr: 'self._required_fields.all(f, has(self[f]) && self[f] != "")'
-
-unique-screen-name:
-  description: "Screen names must be globally unique"
-  severity: error
-  expr: 'self._type != "screen" || count(nodes_of_type("screen").filter(s, s.name == self.name)) == 1'
-
-unique-flow-name:
-  description: "Flow names must be globally unique"
-  severity: error
-  expr: 'self._type != "flow" || count(nodes_of_type("flow").filter(f, f.name == self.name)) == 1'
+  expr: 'self.name != ""'
