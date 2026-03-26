@@ -62,11 +62,12 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
           // No saved positions -- run dagre
           const positioned = computeAutoLayout(nodes, edges)
           if (cancelled) return
+          const posMap = new Map(positioned.map((n) => [n.id, n.position]))
           setNodes((prev) =>
             prev.map((node) => {
-              const layoutNode = positioned.find((n) => n.id === node.id)
-              if (!layoutNode) return node
-              return { ...node, position: layoutNode.position }
+              const pos = posMap.get(node.id)
+              if (!pos) return node
+              return { ...node, position: pos }
             }),
           )
         }
@@ -117,20 +118,21 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
   const resetLayout = useCallback(() => {
     if (nodes.length === 0) return
 
-    // Clear saved positions server-side
     natsRequest('remmd.c.positions.clear').catch(() => {})
 
-    // Re-run dagre layout
     const positioned = computeAutoLayout(nodes, edges)
+    const posMap = new Map(positioned.map((n) => [n.id, n.position]))
     setNodes((prev) =>
       prev.map((node) => {
-        const layoutNode = positioned.find((n) => n.id === node.id)
-        if (!layoutNode) return node
-        return { ...node, position: layoutNode.position }
+        const pos = posMap.get(node.id)
+        if (!pos) return node
+        return { ...node, position: pos }
       }),
     )
 
     savedPositionsRef.current = null
+    setLayoutApplied(false)
+    layoutKeyRef.current = ''
   }, [nodes, edges, setNodes])
 
   return { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout }

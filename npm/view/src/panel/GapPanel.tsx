@@ -181,22 +181,18 @@ export function GapPanel({
                 <div key={s.ref} className="flex gap-2">
                   <div
                     className="w-0.5 rounded-full shrink-0"
-                    style={{ background: stateColor[s.state] || '#e4e4e7' }}
+                    style={{ background: stateColor[s.state] || '#e4e4e7', minHeight: 16 }}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-medium text-zinc-700 truncate">
+                      <span className="text-[11px] font-medium text-zinc-700">
                         {s.title || s.ref}
                       </span>
-                      {s.kind && (
-                        <span className="text-[8px] text-zinc-400">{s.kind}</span>
-                      )}
+                      <span className="text-[8px] text-zinc-300 shrink-0">{s.ref}</span>
                     </div>
-                    {s.content && (
-                      <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-2">
-                        {s.content}
-                      </div>
-                    )}
+                    <div className="text-[10px] text-zinc-500 mt-1 whitespace-pre-wrap leading-relaxed">
+                      {s.content || 'No content'}
+                    </div>
                   </div>
                 </div>
               ))}

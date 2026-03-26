@@ -132,8 +132,9 @@ function Canvas() {
         <Legend types={playbookTypes} />
 
         <PanelShell mode={panel.mode} columns={panel.columns} onClose={panel.close}>
-          {panel.mode === 'doc' && selectedNode && (
+          {selectedNode && (panel.mode === 'doc' || panel.mode === 'edge') && (
             <GapPanel
+              key={selectedNode.id}
               docId={selectedNode.id}
               docTitle={selectedNode.data.title}
               playbookType={selectedNode.data.playbookType || ''}
@@ -146,17 +147,20 @@ function Canvas() {
           )}
 
           {panel.mode === 'edge' && selectedEdge?.data && (
-            <ThreadPanel
-              edgeType={selectedEdge.data.edgeType || ''}
-              state={selectedEdge.data.worstState || ''}
-              sourceTitle={selectedNode?.data.title || ''}
-              targetTitle={connectedNode?.data.title || ''}
-              links={selectedEdge.data.links.map(l => ({
-                id: l.id,
-                state: l.state,
-                relationship_type: l.relationship_type,
-              }))}
-            />
+            <>
+              <div className="w-px bg-zinc-200 shrink-0" />
+              <ThreadPanel
+                edgeType={selectedEdge.data.edgeType || ''}
+                state={selectedEdge.data.worstState || ''}
+                sourceTitle={selectedNode?.data.title || ''}
+                targetTitle={connectedNode?.data.title || ''}
+                links={selectedEdge.data.links.map(l => ({
+                  id: l.id,
+                  state: l.state,
+                  relationship_type: l.relationship_type,
+                }))}
+              />
+            </>
           )}
         </PanelShell>
       </ReactFlow>
