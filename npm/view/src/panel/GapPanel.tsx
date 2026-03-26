@@ -6,7 +6,8 @@ import {
   CaretUpIcon,
   XIcon,
 } from '@phosphor-icons/react'
-import { validationBg, validationBorder, validationText } from '../theme/colors'
+import { validationBg, validationBorder, validationText, stateColor } from '../theme/colors'
+import { useSections } from '../hooks'
 
 interface GapPanelProps {
   docId: string
@@ -30,6 +31,7 @@ function readCollapsed(): boolean {
 }
 
 export function GapPanel({
+  docId,
   docTitle,
   playbookType,
   owner,
@@ -39,6 +41,8 @@ export function GapPanel({
   onClose,
 }: GapPanelProps) {
   const [passingCollapsed, setPassingCollapsed] = useState(readCollapsed)
+  const { data: sectionsData } = useSections(docId)
+  const sections = sectionsData?.sections ?? []
 
   const togglePassing = () => {
     const next = !passingCollapsed
@@ -164,6 +168,39 @@ export function GapPanel({
                 {validationPassing} rules passing
               </div>
             )}
+          </div>
+        )}
+
+        {sections.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-zinc-100">
+            <div className="text-[10px] font-semibold text-zinc-600 mb-2">
+              Content
+            </div>
+            <div className="space-y-2">
+              {sections.map((s: any) => (
+                <div key={s.ref} className="flex gap-2">
+                  <div
+                    className="w-0.5 rounded-full shrink-0"
+                    style={{ background: stateColor[s.state] || '#e4e4e7' }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-medium text-zinc-700 truncate">
+                        {s.title || s.ref}
+                      </span>
+                      {s.kind && (
+                        <span className="text-[8px] text-zinc-400">{s.kind}</span>
+                      )}
+                    </div>
+                    {s.content && (
+                      <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-2">
+                        {s.content}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

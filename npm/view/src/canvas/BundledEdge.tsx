@@ -39,7 +39,7 @@ function BundledEdgeInner({
 
   const isStructural = data.isStructural || STRUCTURAL_TYPES.has(data.edgeType)
   const color = isStructural ? '#a1a1aa' : (stateColor[data.worstState] || '#a1a1aa')
-  const baseOpacity = selected ? 1 : hovered ? 0.8 : 0.4
+  const baseOpacity = selected ? 1 : hovered ? 0.9 : 0.6
   const strokeWidth = Math.min(2 + data.count, 6)
 
   const typeName = data.count > 1

@@ -58,13 +58,13 @@ export function useForceLayout(nodes: Node[], edges: Edge[]) {
         'link',
         forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance(250),
+          .distance(350),
       )
-      .force('charge', forceManyBody().strength(-400))
+      .force('charge', forceManyBody().strength(-1200))
       .force('center', forceCenter(0, 0))
       .force(
         'collide',
-        forceCollide<SimNode>().radius((d) => Math.max(d.width, d.height) / 2 + 20),
+        forceCollide<SimNode>().radius((d) => Math.max(d.width, d.height) / 2 + 40),
       )
       .alphaDecay(0.02)
       .on('tick', () => {
