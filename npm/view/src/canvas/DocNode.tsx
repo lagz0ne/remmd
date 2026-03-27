@@ -1,12 +1,16 @@
 import { memo, useMemo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { marked } from 'marked'
+import { useZoomLevel } from './use-zoom-level'
 
 interface DocNodeData extends Record<string, unknown> {
   title: string
   brief: string
   playbookType: string
   status: string
+  sectionCount: number
+  outgoing: number
+  incoming: number
 }
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -17,6 +21,7 @@ function renderBrief(raw: string): string {
 }
 
 function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
+  const zoom = useZoomLevel()
   const typeName = (data.playbookType as string) || ''
   const title = (data.title as string) || 'Untitled'
   const brief = (data.brief as string) || ''
@@ -59,8 +64,8 @@ function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
         {title}
       </div>
 
-      {html && (
-        <div style={{ position: 'relative', marginTop: 6, maxHeight: 80, overflow: 'hidden' }}>
+      {zoom !== 'far' && html && (
+        <div style={{ position: 'relative', marginTop: 6, maxHeight: zoom === 'close' ? 160 : 80, overflow: 'hidden' }}>
           <div
             className="doc-node-md"
             dangerouslySetInnerHTML={{ __html: html }}
@@ -73,6 +78,15 @@ function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
             height: 20,
             background: 'linear-gradient(transparent, white)',
           }} />
+        </div>
+      )}
+
+      {zoom === 'close' && (
+        <div style={{ marginTop: 6, display: 'flex', gap: 6, fontSize: 9, color: '#a1a1aa' }}>
+          {data.sectionCount > 0 && <span>{data.sectionCount} sections</span>}
+          {(data.outgoing > 0 || data.incoming > 0) && (
+            <span>{data.outgoing + data.incoming} links</span>
+          )}
         </div>
       )}
 

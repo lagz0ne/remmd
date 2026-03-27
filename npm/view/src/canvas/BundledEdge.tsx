@@ -7,6 +7,7 @@ import {
 import { CheckCircleIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import type { BundleEdgeData } from './use-graph-data'
 import { stateColor } from '../theme/colors'
+import { useZoomLevel } from './use-zoom-level'
 
 const STRUCTURAL_TYPES = new Set(['contains', 'parent-of', 'contains-ctx', 'contains-ctr'])
 
@@ -41,6 +42,7 @@ function BundledEdgeInner({
   data,
   selected,
 }: EdgeProps & { data: BundleEdgeData }) {
+  const zoom = useZoomLevel()
   const [hovered, setHovered] = useState(false)
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -98,7 +100,7 @@ function BundledEdgeInner({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       />
-      <EdgeLabelRenderer>
+      {zoom !== 'far' && <EdgeLabelRenderer>
         <div
           className="absolute pointer-events-auto cursor-pointer flex items-stretch"
           style={{
@@ -150,7 +152,7 @@ function BundledEdgeInner({
             </div>
           ) : null}
         </div>
-      </EdgeLabelRenderer>
+      </EdgeLabelRenderer>}
     </>
   )
 }
