@@ -23,9 +23,20 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
 
   const html = useMemo(() => {
     if (sections.length === 0) return ''
-    const md = sections.map(s => s.content || '').join('\n\n')
-    return marked.parse(unescape(md)) as string
-  }, [sections])
+    const parts: string[] = []
+    for (const s of sections) {
+      const sTitle = (s as any).title || ''
+      const sContent = (s as any).content || ''
+      // Skip the root section (title matches doc title)
+      if (sTitle === title) continue
+      // Section title becomes a heading, content follows
+      if (sTitle) parts.push(`## ${sTitle}`)
+      // Content may duplicate the title as first line — strip it
+      const body = sContent.startsWith(sTitle) ? sContent.slice(sTitle.length).replace(/^\n+/, '') : sContent
+      if (body) parts.push(body)
+    }
+    return marked.parse(unescape(parts.join('\n\n'))) as string
+  }, [sections, title])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
