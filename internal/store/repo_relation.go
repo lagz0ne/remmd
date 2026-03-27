@@ -50,6 +50,13 @@ func (r *RelationRepo) ListRelationsTo(ctx context.Context, docID string) ([]cor
 		 FROM relations WHERE to_doc_id = ? ORDER BY created_at`, docID)
 }
 
+// ListAllRelations returns every relation in the store.
+func (r *RelationRepo) ListAllRelations(ctx context.Context) ([]core.Relation, error) {
+	return r.listRelations(ctx,
+		`SELECT id, from_doc_id, to_doc_id, relation_type, metadata, created_at
+		 FROM relations ORDER BY created_at`)
+}
+
 // DeleteRelation removes a relation by ID.
 func (r *RelationRepo) DeleteRelation(ctx context.Context, id string) error {
 	res, err := r.db.ExecContext(ctx, `DELETE FROM relations WHERE id = ?`, id)

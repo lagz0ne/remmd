@@ -28,6 +28,7 @@ interface GraphEdge {
   relationship_type: string
   left_section_ids: string[]
   right_section_ids: string[]
+  is_relation?: boolean
 }
 
 export interface DocNodeData extends Record<string, unknown> {
@@ -168,7 +169,7 @@ export function transformGraph(
 
       const first = links[0]
       const edgeType = first.relationship_type || ''
-      const isStructural = ['contains', 'parent-of'].includes(edgeType)
+      const isStructural = first.is_relation || ['contains', 'parent-of'].includes(edgeType)
 
       return {
         id: `bundle-${key}`,

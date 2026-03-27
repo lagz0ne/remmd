@@ -154,7 +154,7 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 		})
 	})
 
-	// remmd.q.graph — full graph: documents as nodes, links as edges
+	// remmd.q.graph — full graph: documents as nodes, links + relations as edges
 	nc.Subscribe("remmd.q.graph", func(msg *nats.Msg) {
 		ctx := context.Background()
 		docs, err := application.Docs.ListDocuments(ctx)
@@ -169,6 +169,12 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 			replyErr(msg, err)
 			return
 		}
+		relations, err := application.Relations.ListAllRelations(ctx)
+		if err != nil {
+			slog.Error("handler: graph list relations", "error", err)
+			replyErr(msg, err)
+			return
+		}
 		resolver := func(ctx context.Context, sectionID string) (string, error) {
 			sec, err := application.Docs.FindSectionByID(ctx, sectionID)
 			if err != nil {
@@ -179,7 +185,7 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 		sectionLister := func(ctx context.Context, docID string) ([]*core.Section, error) {
 			return application.Docs.ListSections(ctx, docID)
 		}
-		reply(msg, buildGraphResponse(ctx, docs, links, resolver, sectionLister))
+		reply(msg, buildGraphResponse(ctx, docs, links, relations, resolver, sectionLister))
 	})
 
 	// remmd.q.playbook — active playbook schema
@@ -371,11 +377,12 @@ type graphEdge struct {
 	RelationshipType string   `json:"relationship_type"`
 	LeftSectionIDs   []string `json:"left_section_ids"`
 	RightSectionIDs  []string `json:"right_section_ids"`
+	IsRelation       bool     `json:"is_relation,omitempty"`
 }
 
 type sectionLister func(ctx context.Context, docID string) ([]*core.Section, error)
 
-func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*core.Link, resolve sectionDocResolver, listSections sectionLister) graphResponse {
+func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*core.Link, relations []core.Relation, resolve sectionDocResolver, listSections sectionLister) graphResponse {
 	nodes := make([]graphNode, 0, len(docs))
 	for _, d := range docs {
 		gn := graphNode{
@@ -387,9 +394,7 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 		}
 		if sections, err := listSections(ctx, d.ID); err == nil {
 			gn.SectionCount = len(sections)
-			if len(sections) > 0 && sections[0].Content != "" {
-				gn.Brief = sections[0].Content
-			}
+			gn.Brief = findGoalBrief(sections)
 		}
 		nodes = append(nodes, gn)
 	}
@@ -415,7 +420,36 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 		})
 	}
 
+	// Append structural relations as edges (no approval workflow).
+	for _, rel := range relations {
+		edges = append(edges, graphEdge{
+			ID:               rel.ID,
+			SourceDocID:      rel.FromDocID,
+			TargetDocID:      rel.ToDocID,
+			State:            "aligned",
+			RelationshipType: rel.RelationType,
+			IsRelation:       true,
+		})
+	}
+
 	return graphResponse{Nodes: nodes, Edges: edges}
+}
+
+// findGoalBrief finds the "Goal" section's content for the node brief.
+// Falls back to the first non-empty section if no Goal section exists.
+func findGoalBrief(sections []*core.Section) string {
+	for _, s := range sections {
+		if strings.EqualFold(s.Title, "goal") && s.Content != "" {
+			return s.Content
+		}
+	}
+	// Fallback: first section with content
+	for _, s := range sections {
+		if s.Content != "" {
+			return s.Content
+		}
+	}
+	return ""
 }
 
 func resolveDocID(ctx context.Context, sectionIDs []string, resolve sectionDocResolver) (string, error) {

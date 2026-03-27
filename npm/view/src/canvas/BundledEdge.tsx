@@ -8,11 +8,25 @@ import { CheckCircleIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import type { BundleEdgeData } from './use-graph-data'
 import { stateColor } from '../theme/colors'
 
-const STRUCTURAL_TYPES = new Set(['contains', 'parent-of'])
+const STRUCTURAL_TYPES = new Set(['contains', 'parent-of', 'contains-ctx', 'contains-ctr'])
 
 function abbreviateType(type: string): string {
-  if (type === 'contains') return 'cnt'
-  return type
+  const map: Record<string, string> = {
+    'contains': 'contains',
+    'contains-ctx': 'contains',
+    'contains-ctr': 'contains',
+    'cites': 'cites',
+    'governs': 'governs',
+    'scopes': 'scopes',
+    'originates': 'origin',
+    'decides': 'decides',
+    'traces': 'traces',
+    'implements': 'impl',
+    'agrees_with': 'agrees',
+    'tests': 'tests',
+    'evidences': 'evidence',
+  }
+  return map[type] || type
 }
 
 function BundledEdgeInner({

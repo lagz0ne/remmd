@@ -51,6 +51,7 @@ type RelationRepository interface {
 	CreateRelation(ctx context.Context, r *Relation) error
 	ListRelationsFrom(ctx context.Context, docID string) ([]Relation, error)
 	ListRelationsTo(ctx context.Context, docID string) ([]Relation, error)
+	ListAllRelations(ctx context.Context) ([]Relation, error)
 	DeleteRelation(ctx context.Context, id string) error
 }
 

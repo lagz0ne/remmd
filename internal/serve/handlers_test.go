@@ -82,7 +82,7 @@ func TestBuildGraphResponse(t *testing.T) {
 	}
 
 	t.Run("empty graph", func(t *testing.T) {
-		resp := buildGraphResponse(context.Background(), nil, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
+		resp := buildGraphResponse(context.Background(), nil, nil, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Nodes) != 0 {
 			t.Errorf("expected 0 nodes, got %d", len(resp.Nodes))
 		}
@@ -96,7 +96,7 @@ func TestBuildGraphResponse(t *testing.T) {
 			{ID: "doc-1", Title: "Design", Status: core.DocumentActive, Source: "native"},
 			{ID: "doc-2", Title: "Spec", Status: core.DocumentArchived, Source: "git"},
 		}
-		resp := buildGraphResponse(context.Background(), docs, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
+		resp := buildGraphResponse(context.Background(), docs, nil, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Nodes) != 2 {
 			t.Fatalf("expected 2 nodes, got %d", len(resp.Nodes))
 		}
@@ -125,7 +125,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkAligned,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
+		resp := buildGraphResponse(context.Background(), docs, links, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 1 {
 			t.Fatalf("expected 1 edge, got %d", len(resp.Edges))
 		}
@@ -160,7 +160,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkBroken,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
+		resp := buildGraphResponse(context.Background(), docs, links, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 0 {
 			t.Errorf("expected broken link with missing section to be skipped, got %d edges", len(resp.Edges))
 		}
@@ -180,7 +180,7 @@ func TestBuildGraphResponse(t *testing.T) {
 				State:            core.LinkPending,
 			},
 		}
-		resp := buildGraphResponse(context.Background(), docs, links, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
+		resp := buildGraphResponse(context.Background(), docs, links, nil, resolver, func(_ context.Context, _ string) ([]*core.Section, error) { return nil, nil })
 		if len(resp.Edges) != 1 {
 			t.Fatalf("expected 1 edge, got %d", len(resp.Edges))
 		}
@@ -281,6 +281,85 @@ func TestBuildPlaybookResponse(t *testing.T) {
 	}
 	if resp.Rules[0].Name != "global_check" {
 		t.Errorf("global rule name = %q", resp.Rules[0].Name)
+	}
+}
+
+func TestBuildGraphResponse_IncludesRelations(t *testing.T) {
+	t.Parallel()
+
+	docs := []*core.Document{
+		{ID: "doc-ctx", Title: "remmd", Status: core.DocumentActive, DocType: "context"},
+		{ID: "doc-ctr", Title: "cli", Status: core.DocumentActive, DocType: "container"},
+		{ID: "doc-comp", Title: "cmd-root", Status: core.DocumentActive, DocType: "component"},
+	}
+
+	relations := []core.Relation{
+		{ID: "rel-1", FromDocID: "doc-ctx", ToDocID: "doc-ctr", RelationType: "contains-ctx"},
+		{ID: "rel-2", FromDocID: "doc-ctr", ToDocID: "doc-comp", RelationType: "contains-ctr"},
+	}
+
+	resolver := func(_ context.Context, sectionID string) (string, error) {
+		return "", core.ErrNotFound{Entity: "section", ID: sectionID}
+	}
+	sectionLister := func(_ context.Context, _ string) ([]*core.Section, error) {
+		return nil, nil
+	}
+
+	resp := buildGraphResponse(context.Background(), docs, nil, relations, resolver, sectionLister)
+
+	if len(resp.Nodes) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(resp.Nodes))
+	}
+	if len(resp.Edges) != 2 {
+		t.Fatalf("expected 2 edges from relations, got %d", len(resp.Edges))
+	}
+
+	edge := resp.Edges[0]
+	if edge.SourceDocID != "doc-ctx" {
+		t.Errorf("edge[0].SourceDocID = %q, want %q", edge.SourceDocID, "doc-ctx")
+	}
+	if edge.TargetDocID != "doc-ctr" {
+		t.Errorf("edge[0].TargetDocID = %q, want %q", edge.TargetDocID, "doc-ctr")
+	}
+	if edge.RelationshipType != "contains-ctx" {
+		t.Errorf("edge[0].RelationshipType = %q, want %q", edge.RelationshipType, "contains-ctx")
+	}
+	if !edge.IsRelation {
+		t.Error("edge[0].IsRelation should be true for structural relations")
+	}
+}
+
+func TestBuildGraphResponse_BriefUsesGoalSection(t *testing.T) {
+	t.Parallel()
+
+	docs := []*core.Document{
+		{ID: "doc-1", Title: "cmd-root", Status: core.DocumentActive, DocType: "component"},
+	}
+
+	goalSection := &core.Section{
+		ID: "s-goal", DocID: "doc-1", Title: "Goal",
+		Content: "Root command, global flags, DB initialization",
+	}
+	otherSection := &core.Section{
+		ID: "s-deps", DocID: "doc-1", Title: "Dependencies",
+		Content: "| Col 1 | Col 2 |",
+	}
+
+	sectionLister := func(_ context.Context, docID string) ([]*core.Section, error) {
+		if docID == "doc-1" {
+			return []*core.Section{otherSection, goalSection}, nil
+		}
+		return nil, nil
+	}
+	resolver := func(_ context.Context, _ string) (string, error) { return "", nil }
+
+	resp := buildGraphResponse(context.Background(), docs, nil, nil, resolver, sectionLister)
+
+	if len(resp.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(resp.Nodes))
+	}
+	if resp.Nodes[0].Brief != "Root command, global flags, DB initialization" {
+		t.Errorf("brief = %q, want goal section content", resp.Nodes[0].Brief)
 	}
 }
 
