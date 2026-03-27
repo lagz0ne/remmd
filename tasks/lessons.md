@@ -4,7 +4,12 @@
 - Playbook engine (6-keyword YAML, CEL checker, Guard, embedded storage)
 - Canvas UI rebuilt from scratch (React Flow + dagre + panel drawer)
 - 2 production playbooks (c3, sft)
-- C3 architecture docs imported as remmd documents with 49 links
+- C3 architecture docs imported as remmd documents (53 docs, 54 structural relations)
+- Relations system: C3 edges are structural relations, not trust links
+- Position persistence: load saved positions, dagre only for new nodes, save on drag end
+- Goal briefs: DocNode shows Goal section content instead of raw first section
+- Table column headers: parser preserves header names in Kind field
+- Edge labels: BundledEdge registered with proper C3 type abbreviations
 
 ## Hard lessons
 
@@ -24,7 +29,13 @@ Dagre allocates space based on NODE_WIDTH/NODE_HEIGHT. If the rendered component
 `agent-browser mouse down` fires at (0,0) regardless of prior `mouse move`. Synthetic `dispatchEvent` with PointerEvent is ignored by React Flow (untrusted events). **Can't test drag programmatically via agent-browser — need user to verify.**
 
 ### Section parser splits table rows into separate sections
-remmd's section parser treats each `|` line as a potential section boundary. When importing markdown with tables, each table row becomes its own section. The panel must reconstruct tables by joining contiguous pipe-delimited sections. **Import format matters — test with tables/code blocks, not just headings.**
+remmd's section parser treats each `|` line as a potential section boundary. When importing markdown with tables, each table row becomes its own section. The panel reconstructs tables by joining contiguous pipe-delimited sections. **Parser now stores header column names in section Kind field** (`Name|Status`) so the panel can render proper headers.
+
+### C3 edges are Relations, not Links
+C3's structural hierarchy (contains, cites, governs, etc.) maps to remmd's **Relation** entity (lightweight, no approval). Links are for **trust** relationships (implements, agrees_with, tests, evidences) that require bilateral approval. **Don't conflate structural edges with trust edges.**
+
+### NATS positions API returns null, not empty array
+`LoadPositions()` returns nil when empty. `json.Marshal(nil)` produces `null`. Frontend must guard: `Array.isArray(savedPositions) ? savedPositions : []`. **Always handle null vs empty array from Go APIs.**
 
 ### Port derivation is unpredictable
 `remmd serve` derives the port from the project name hash. Different working directories produce different ports (4126 vs 4161). Old processes on old ports serve stale content. **Always check `ss -tlnp | grep PORT` and kill old processes before starting new ones.**
@@ -49,9 +60,16 @@ Navigation stack: `[{nodeId, title, edgeType, sourceId}]`. Stack length 0 = clos
 ### Workflow = remmd's existing link system
 Playbooks define artifact types + ownership (static). Workflows are remmd links across playbook boundaries (dynamic). When PM's story changes, linked designer's screen goes stale. **No separate workflow engine needed — links ARE the workflow mechanism.**
 
+### Relations need ListAllRelations for the graph
+The graph handler needs ALL relations to render structural edges. `ListRelationsFrom`/`ListRelationsTo` only query one doc at a time. Added `ListAllRelations` to the interface + store.
+
 ## What to do next session
-- Fix duplicate doc imports (need a `remmd doc delete` command)
-- Table headers should use actual column names from the C3 schema, not "Col 1, Col 2"
-- The brief on canvas nodes should be more meaningful (Goal text, not first section raw content)
-- Edge labels on canvas (currently no labels showing the relationship type)
-- Position persistence — drag positions save but dagre overrides on every reload (need to restore saved position loading)
+- ~~Table headers should use actual column names~~ ✅ Done — Kind field
+- ~~Brief on canvas nodes should be more meaningful~~ ✅ Done — Goal section
+- ~~Edge labels on canvas~~ ✅ Done — BundledEdge registered with type labels
+- ~~Position persistence~~ ✅ Done — load/save/dagre-only-for-new
+- Build C3 adapter (subprocess, JSON lines, fetch/watch/stop ops)
+- Code-map coverage in C3 is 0% — scaffold with `c3x codemap`
+- Re-import C3 docs with full content (current import has sparse bodies for new rules)
+- Canvas zoom levels: implement close (editor) and medium (sections as blocks)
+- Visual verification of canvas with agent-browser (positions, edge labels, briefs)
