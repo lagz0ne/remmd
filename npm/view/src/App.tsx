@@ -3,12 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
   MiniMap,
   Controls,
   Background,
   BackgroundVariant,
+  applyNodeChanges,
   type NodeMouseHandler,
   type EdgeMouseHandler,
+  type OnNodesChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ArrowClockwiseIcon } from '@phosphor-icons/react'
@@ -35,10 +38,16 @@ const edgeTypes = { bundled: BundledEdge }
 function Canvas() {
   useNatsInvalidation()
   const { nodes, edges, isLoading } = useGraphData()
+  const { setNodes } = useReactFlow()
   const { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout } = useForceLayout(nodes, edges)
   const panel = usePanelState()
   const { data: pb } = usePlaybook()
   const playbookTypes = pb?.types ? pb.types.map(t => t.name) : []
+
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    [setNodes],
+  )
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
@@ -92,6 +101,7 @@ function Canvas() {
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onNodesChange={onNodesChange}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
