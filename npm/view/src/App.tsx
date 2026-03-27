@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css'
 
 import { useNatsInvalidation } from './hooks'
 import { useGraphData } from './canvas/use-graph-data'
+import { computeAutoLayout } from './canvas/use-auto-layout'
 
 const queryClient = new QueryClient()
 
@@ -26,9 +27,8 @@ function Canvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[])
   const [initialized, setInitialized] = useState(false)
 
-  // Sync graph data into React Flow state (once, or when graph changes)
   if (!initialized && graphNodes.length > 0) {
-    setNodes(graphNodes)
+    setNodes(computeAutoLayout(graphNodes, graphEdges))
     setEdges(graphEdges)
     setInitialized(true)
   }
