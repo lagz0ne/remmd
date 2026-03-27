@@ -422,7 +422,6 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 		})
 	}
 
-	// Append structural relations as edges (no approval workflow).
 	for _, rel := range relations {
 		edges = append(edges, graphEdge{
 			ID:               rel.ID,
@@ -437,15 +436,12 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 	return graphResponse{Nodes: nodes, Edges: edges}
 }
 
-// findGoalBrief finds the "Goal" section's content for the node brief.
-// Falls back to the first non-empty section if no Goal section exists.
 func findGoalBrief(sections []*core.Section) string {
 	for _, s := range sections {
 		if strings.EqualFold(s.Title, "goal") && s.Content != "" {
 			return s.Content
 		}
 	}
-	// Fallback: first section with content
 	for _, s := range sections {
 		if s.Content != "" {
 			return s.Content

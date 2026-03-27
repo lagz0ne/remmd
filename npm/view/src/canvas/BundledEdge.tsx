@@ -10,23 +10,24 @@ import { stateColor } from '../theme/colors'
 
 const STRUCTURAL_TYPES = new Set(['contains', 'parent-of', 'contains-ctx', 'contains-ctr'])
 
+const EDGE_LABELS: Record<string, string> = {
+  contains: 'contains',
+  'contains-ctx': 'contains',
+  'contains-ctr': 'contains',
+  cites: 'cites',
+  governs: 'governs',
+  scopes: 'scopes',
+  originates: 'origin',
+  decides: 'decides',
+  traces: 'traces',
+  implements: 'impl',
+  agrees_with: 'agrees',
+  tests: 'tests',
+  evidences: 'evidence',
+}
+
 function abbreviateType(type: string): string {
-  const map: Record<string, string> = {
-    'contains': 'contains',
-    'contains-ctx': 'contains',
-    'contains-ctr': 'contains',
-    'cites': 'cites',
-    'governs': 'governs',
-    'scopes': 'scopes',
-    'originates': 'origin',
-    'decides': 'decides',
-    'traces': 'traces',
-    'implements': 'impl',
-    'agrees_with': 'agrees',
-    'tests': 'tests',
-    'evidences': 'evidence',
-  }
-  return map[type] || type
+  return EDGE_LABELS[type] || type
 }
 
 function BundledEdgeInner({

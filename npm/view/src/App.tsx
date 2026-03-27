@@ -66,10 +66,7 @@ function Canvas() {
   }, [])
 
   const onNodeDragStop = useCallback(
-    (_: any, _node: Node, draggedNodes: Node[]) => {
-      // React Flow gives us the dragged nodes with updated positions,
-      // but we save ALL node positions from current state
-      void draggedNodes // used by React Flow callback signature
+    (_: any, _node: Node, _draggedNodes: Node[]) => {
       setNodes(current => {
         savePositions(current)
         return current
