@@ -17,8 +17,10 @@ import '@xyflow/react/dist/style.css'
 import { useNatsInvalidation } from './hooks'
 import { useGraphData } from './canvas/use-graph-data'
 import { computeAutoLayout } from './canvas/use-auto-layout'
+import { DocNode } from './canvas/DocNode'
 
 const queryClient = new QueryClient()
+const nodeTypes = { document: DocNode }
 
 function Canvas() {
   useNatsInvalidation()
@@ -54,6 +56,7 @@ function Canvas() {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         proOptions={{ hideAttribution: true }}
@@ -62,9 +65,18 @@ function Canvas() {
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e4e4e7" />
         <Controls position="bottom-left" />
-        <MiniMap position="bottom-left" style={{ marginBottom: 120 }} />
+        <MiniMap
+          position="bottom-right"
+          style={{
+            border: '1px solid #e4e4e7',
+            borderRadius: 6,
+            background: '#fafafa',
+          }}
+          maskColor="rgba(0, 0, 0, 0.05)"
+          nodeColor="#d4d4d8"
+        />
       </ReactFlow>
-      <div className="fixed bottom-1 right-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
+      <div className="fixed bottom-1 left-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
         {__BUILD_VERSION__}
       </div>
     </div>
