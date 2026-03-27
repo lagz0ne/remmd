@@ -43,8 +43,13 @@ function Canvas() {
   const onPaneClick = () => setPanelStack([])
 
   const onEdgeFollow = (edge: EdgeItem) => {
-    console.log('follow edge:', edge)
-    // Task 3 will implement actual 2-column navigation
+    setPanelStack(prev => [...prev, {
+      nodeId: edge.targetId,
+      title: edge.targetTitle,
+      typeName: '',
+      edgeType: edge.edgeType,
+      sourceId: prev[prev.length - 1]?.nodeId,
+    }])
   }
 
   if (!initialized && graphNodes.length > 0) {
@@ -104,6 +109,7 @@ function Canvas() {
         graphNodes={nodes}
         onClose={() => setPanelStack([])}
         onEdgeFollow={onEdgeFollow}
+        onStackChange={setPanelStack}
       />
       <div className="fixed bottom-1 left-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
         {__BUILD_VERSION__}
