@@ -75,6 +75,21 @@ func TestParse_TableRows(t *testing.T) {
 	assertSection(t, sections[1], SectionTableRow, "Pay | WIP", nil)
 }
 
+func TestParse_TableRowsPreserveHeaders(t *testing.T) {
+	t.Parallel()
+	md := "| Name | Status |\n|---|---|\n| Auth | Done |\n| Pay | WIP |"
+	sections := Parse("doc1", md, 0)
+	if len(sections) != 2 {
+		t.Fatalf("expected 2 table-row sections, got %d", len(sections))
+	}
+	// Each table-row section should have Kind set to the header column names
+	for i, s := range sections {
+		if s.Kind != "Name|Status" {
+			t.Errorf("section[%d].Kind = %q, want %q", i, s.Kind, "Name|Status")
+		}
+	}
+}
+
 func TestParse_CodeBlock(t *testing.T) {
 	t.Parallel()
 	md := "```go\nfunc main(){}\n```"

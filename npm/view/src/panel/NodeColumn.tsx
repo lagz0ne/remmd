@@ -30,6 +30,7 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
       const sContent = (s as any).content || ''
       if (sTitle === title) continue
 
+      const sKind = (s as any).kind || ''
       const isTableRow = sContent.trimStart().startsWith('|') || sTitle.startsWith('|')
       if (isTableRow) {
         const row = sContent.trim()
@@ -37,9 +38,12 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
           if (inTable) {
             parts[parts.length - 1] += '\n' + row
           } else {
-            // Start new table: infer column count and add header
-            const cols = (row.match(/\|/g) || []).length - 1
-            const header = '| ' + Array.from({length: cols}, (_, i) => `Col ${i+1}`).join(' | ') + ' |'
+            // Start new table: use Kind for header columns, fall back to count
+            const colNames = sKind ? sKind.split('|') : null
+            const cols = colNames ? colNames.length : Math.max(1, (row.match(/\|/g) || []).length - 1)
+            const header = colNames
+              ? '| ' + colNames.join(' | ') + ' |'
+              : '| ' + Array.from({length: cols}, (_, i) => `Col ${i+1}`).join(' | ') + ' |'
             const sep = '| ' + Array.from({length: cols}, () => '---').join(' | ') + ' |'
             parts.push(header + '\n' + sep + '\n' + row)
             inTable = true

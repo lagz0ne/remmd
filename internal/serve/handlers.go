@@ -84,6 +84,7 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 			ID          string  `json:"id"`
 			Ref         string  `json:"ref"`
 			Type        string  `json:"type"`
+			Kind        string  `json:"kind,omitempty"`
 			Title       string  `json:"title"`
 			Content     string  `json:"content"`
 			ContentHash string  `json:"content_hash"`
@@ -105,6 +106,7 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 				ID:          s.ID,
 				Ref:         s.Ref.String(),
 				Type:        string(s.Type),
+				Kind:        s.Kind,
 				Title:       s.Title,
 				Content:     s.Content,
 				ContentHash: s.ContentHash,

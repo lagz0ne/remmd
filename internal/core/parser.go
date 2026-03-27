@@ -37,6 +37,7 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 	currentHeadingIdx := -1
 	var bodyLines []string
 	tableState := 0 // 0=none, 1=header-seen, 2=separator-seen (data rows follow)
+	tableHeaderCols := ""
 	inCodeBlock := false
 	codeBlockLang := ""
 	var codeBlockLines []string
@@ -81,6 +82,7 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 
 		if trimmed == "" {
 			tableState = 0
+			tableHeaderCols = ""
 			listStack = nil
 			if currentHeadingIdx >= 0 && len(bodyLines) > 0 {
 				bodyLines = append(bodyLines, "")
@@ -200,6 +202,7 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 			switch tableState {
 			case 0:
 				tableState = 1
+				tableHeaderCols = parseTableHeaderKind(trimmed)
 				continue
 			case 1:
 				if isTableSeparator(trimmed) {
@@ -215,6 +218,7 @@ func Parse(docID string, markdown string, startSeq int) []Section {
 					Ref:         NewRef(docID, seq),
 					DocID:       docID,
 					Type:        SectionTableRow,
+					Kind:        tableHeaderCols,
 					Title:       title,
 					Content:     trimmed,
 					ContentHash: ContentHash(trimmed),
@@ -311,6 +315,17 @@ func isTableSeparator(trimmed string) bool {
 		}
 	}
 	return len(inner) > 0
+}
+
+// parseTableHeaderKind extracts column names from a header row, joined by "|".
+func parseTableHeaderKind(trimmed string) string {
+	inner := strings.Trim(trimmed, "| ")
+	parts := strings.Split(inner, "|")
+	var cols []string
+	for _, p := range parts {
+		cols = append(cols, strings.TrimSpace(p))
+	}
+	return strings.Join(cols, "|")
 }
 
 // parseTableRow extracts cell contents from a table row, joined by " | ".
