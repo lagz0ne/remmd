@@ -99,8 +99,7 @@ function Canvas() {
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         panOnScroll
-        selectionOnDrag
-        panOnDrag={false}
+        panOnDrag
         minZoom={0.1}
         maxZoom={2}
         fitView
