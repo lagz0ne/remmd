@@ -5,8 +5,10 @@ import { remmdPlugin } from './src/vite-plugin-remmd'
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), remmdPlugin()],
-  server: {
-    // No proxy needed — Go reverse-proxies to us
-    // NATS WS is on Go's mux at /nats
+  define: {
+    __BUILD_VERSION__: JSON.stringify(
+      `${new Date().toISOString().slice(0, 16)} | ${process.env.npm_package_version || 'dev'}`
+    ),
   },
+  server: {},
 })

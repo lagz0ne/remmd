@@ -162,6 +162,9 @@ function Canvas() {
           )}
         </PanelShell>
       </ReactFlow>
+      <div className="fixed bottom-1 right-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
+        {__BUILD_VERSION__}
+      </div>
     </div>
   )
 }
