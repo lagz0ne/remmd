@@ -18,6 +18,7 @@ import { useNatsInvalidation } from './hooks'
 import { useGraphData } from './canvas/use-graph-data'
 import { computeAutoLayout } from './canvas/use-auto-layout'
 import { DocNode } from './canvas/DocNode'
+import { NodePanel, type StackEntry } from './panel/NodePanel'
 
 const queryClient = new QueryClient()
 const nodeTypes = { document: DocNode }
@@ -28,6 +29,17 @@ function Canvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[])
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[])
   const [initialized, setInitialized] = useState(false)
+  const [panelStack, setPanelStack] = useState<StackEntry[]>([])
+
+  const onNodeClick = (_: any, node: Node) => {
+    setPanelStack([{
+      nodeId: node.id,
+      title: (node.data as any).title || node.id,
+      typeName: (node.data as any).playbookType || '',
+    }])
+  }
+
+  const onPaneClick = () => setPanelStack([])
 
   if (!initialized && graphNodes.length > 0) {
     setNodes(computeAutoLayout(graphNodes, graphEdges))
@@ -59,6 +71,8 @@ function Canvas() {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         proOptions={{ hideAttribution: true }}
         fitView
         fitViewOptions={{ padding: 0.3 }}
@@ -78,6 +92,7 @@ function Canvas() {
           nodeColor="#d4d4d8"
         />
       </ReactFlow>
+      <NodePanel stack={panelStack} onClose={() => setPanelStack([])} />
       <div className="fixed bottom-1 left-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
         {__BUILD_VERSION__}
       </div>
