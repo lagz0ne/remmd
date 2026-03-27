@@ -68,8 +68,8 @@ The graph handler needs ALL relations to render structural edges. `ListRelations
 - ~~Brief on canvas nodes should be more meaningful~~ ✅ Done — Goal section
 - ~~Edge labels on canvas~~ ✅ Done — BundledEdge registered with type labels
 - ~~Position persistence~~ ✅ Done — load/save/dagre-only-for-new
+- ~~Re-import C3 docs with full content~~ ✅ Done — 7 rules enriched with full C3 content
+- ~~Canvas zoom levels~~ ✅ Done — far (title only), medium (brief), close (brief + counts)
+- Code-map coverage in C3 — scaffolded, filling in progress
 - Build C3 adapter (subprocess, JSON lines, fetch/watch/stop ops)
-- Code-map coverage in C3 is 0% — scaffold with `c3x codemap`
-- Re-import C3 docs with full content (current import has sparse bodies for new rules)
-- Canvas zoom levels: implement close (editor) and medium (sections as blocks)
-- Visual verification of canvas with agent-browser (positions, edge labels, briefs)
+- Visual verification of canvas with agent-browser
