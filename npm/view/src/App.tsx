@@ -100,6 +100,7 @@ function Canvas() {
         onNodeDragStop={onNodeDragStop}
         panOnScroll
         panOnDrag
+        proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={2}
         fitView
