@@ -27,6 +27,24 @@
 .doc-node-md th, .doc-node-md td { border: 1px solid #e4e4e7; padding: 2px 4px; }
 .doc-node-md hr { border: none; border-top: 1px solid #e4e4e7; margin: 4px 0; }
 
+/* Markdown inside panel (larger, readable) */
+.panel-md h1 { font-size: 16px; font-weight: 700; color: #18181b; margin: 16px 0 6px; }
+.panel-md h2 { font-size: 14px; font-weight: 600; color: #18181b; margin: 14px 0 4px; border-bottom: 1px solid #f4f4f5; padding-bottom: 4px; }
+.panel-md h3 { font-size: 12px; font-weight: 600; color: #3f3f46; margin: 10px 0 3px; }
+.panel-md p { margin: 4px 0; }
+.panel-md ul, .panel-md ol { padding-left: 18px; margin: 4px 0; }
+.panel-md li { margin: 2px 0; }
+.panel-md code { font-size: 10px; background: #f4f4f5; padding: 1px 4px; border-radius: 3px; font-family: ui-monospace, monospace; }
+.panel-md pre { font-size: 10px; background: #f4f4f5; padding: 8px 10px; border-radius: 4px; margin: 6px 0; overflow-x: auto; }
+.panel-md pre code { background: none; padding: 0; }
+.panel-md blockquote { border-left: 3px solid #e4e4e7; padding-left: 10px; margin: 6px 0; color: #71717a; }
+.panel-md a { color: #3b82f6; text-decoration: none; }
+.panel-md table { width: 100%; font-size: 11px; border-collapse: collapse; margin: 6px 0; }
+.panel-md th { border: 1px solid #e4e4e7; padding: 4px 8px; background: #fafafa; font-weight: 600; color: #3f3f46; text-align: left; }
+.panel-md td { border: 1px solid #e4e4e7; padding: 4px 8px; color: #52525b; }
+.panel-md hr { border: none; border-top: 1px solid #e4e4e7; margin: 8px 0; }
+.panel-md strong { font-weight: 600; color: #18181b; }
+
 /* Diff highlighting — used by DiffHighlight.tsx */
 .diff-container { line-height: 1.6; }
 .diff-insert { background: #dcfce7; padding: 1px 2px; border-radius: 2px; }

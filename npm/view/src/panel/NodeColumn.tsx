@@ -24,14 +24,32 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
   const html = useMemo(() => {
     if (sections.length === 0) return ''
     const parts: string[] = []
+    let inTable = false
     for (const s of sections) {
       const sTitle = (s as any).title || ''
       const sContent = (s as any).content || ''
-      // Skip the root section (title matches doc title)
       if (sTitle === title) continue
-      // Section title becomes a heading, content follows
+
+      const isTableRow = sContent.trimStart().startsWith('|') || sTitle.startsWith('|')
+      if (isTableRow) {
+        const row = sContent.trim()
+        if (row) {
+          if (inTable) {
+            parts[parts.length - 1] += '\n' + row
+          } else {
+            // Start new table: infer column count and add header
+            const cols = (row.match(/\|/g) || []).length - 1
+            const header = '| ' + Array.from({length: cols}, (_, i) => `Col ${i+1}`).join(' | ') + ' |'
+            const sep = '| ' + Array.from({length: cols}, () => '---').join(' | ') + ' |'
+            parts.push(header + '\n' + sep + '\n' + row)
+            inTable = true
+          }
+        }
+        continue
+      }
+
+      inTable = false
       if (sTitle) parts.push(`## ${sTitle}`)
-      // Content may duplicate the title as first line — strip it
       const body = sContent.startsWith(sTitle) ? sContent.slice(sTitle.length).replace(/^\n+/, '') : sContent
       if (body) parts.push(body)
     }
@@ -57,7 +75,7 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
         )}
       </div>
       <div
-        className="doc-node-md"
+        className="panel-md"
         style={{
           flex: 1,
           padding: '10px 14px',
