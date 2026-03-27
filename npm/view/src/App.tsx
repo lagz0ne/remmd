@@ -37,17 +37,20 @@ const edgeTypes = { bundled: BundledEdge }
 
 function Canvas() {
   useNatsInvalidation()
-  const { nodes, edges, isLoading } = useGraphData()
-  const { setNodes } = useReactFlow()
-  const { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout } = useForceLayout(nodes, edges)
+  const { nodes: graphNodes, edges, isLoading } = useGraphData()
+  const { onNodeDragStart, onNodeDrag, onNodeDragStop, resetLayout } = useForceLayout(graphNodes, edges)
   const panel = usePanelState()
   const { data: pb } = usePlaybook()
   const playbookTypes = pb?.types ? pb.types.map(t => t.name) : []
 
+  // Use graphNodes directly — useForceLayout calls setNodes() to
+  // position them. onNodesChange applies drag position updates.
+  const { setNodes } = useReactFlow()
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes],
   )
+  const nodes = graphNodes
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
