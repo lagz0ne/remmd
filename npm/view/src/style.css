@@ -10,6 +10,23 @@
   --archived: #9e9e9e;
 }
 
+/* Markdown inside canvas nodes */
+.doc-node-md { font-size: 10px; color: #71717a; line-height: 1.5; }
+.doc-node-md h1 { font-size: 11px; font-weight: 600; color: #52525b; margin: 4px 0 2px; }
+.doc-node-md h2 { font-size: 10px; font-weight: 600; color: #52525b; margin: 4px 0 2px; }
+.doc-node-md h3 { font-size: 10px; font-weight: 500; color: #71717a; margin: 3px 0 1px; }
+.doc-node-md p { margin: 2px 0; }
+.doc-node-md ul, .doc-node-md ol { padding-left: 14px; margin: 2px 0; }
+.doc-node-md li { margin: 1px 0; }
+.doc-node-md code { font-size: 9px; background: #f4f4f5; padding: 1px 3px; border-radius: 2px; font-family: monospace; }
+.doc-node-md pre { font-size: 9px; background: #f4f4f5; padding: 4px 6px; border-radius: 3px; margin: 3px 0; overflow: hidden; }
+.doc-node-md pre code { background: none; padding: 0; }
+.doc-node-md blockquote { border-left: 2px solid #e4e4e7; padding-left: 8px; margin: 3px 0; color: #a1a1aa; }
+.doc-node-md a { color: #3b82f6; text-decoration: none; }
+.doc-node-md table { font-size: 9px; border-collapse: collapse; margin: 3px 0; }
+.doc-node-md th, .doc-node-md td { border: 1px solid #e4e4e7; padding: 2px 4px; }
+.doc-node-md hr { border: none; border-top: 1px solid #e4e4e7; margin: 4px 0; }
+
 /* Diff highlighting — used by DiffHighlight.tsx */
 .diff-container { line-height: 1.6; }
 .diff-insert { background: #dcfce7; padding: 1px 2px; border-radius: 2px; }

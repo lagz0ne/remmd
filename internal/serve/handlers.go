@@ -388,11 +388,7 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 		if sections, err := listSections(ctx, d.ID); err == nil {
 			gn.SectionCount = len(sections)
 			if len(sections) > 0 && sections[0].Content != "" {
-				brief := sections[0].Content
-				if len(brief) > 120 {
-					brief = brief[:120] + "..."
-				}
-				gn.Brief = brief
+				gn.Brief = sections[0].Content
 			}
 		}
 		nodes = append(nodes, gn)

@@ -1,5 +1,6 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { marked } from 'marked'
 
 interface DocNodeData extends Record<string, unknown> {
   title: string
@@ -8,10 +9,18 @@ interface DocNodeData extends Record<string, unknown> {
   status: string
 }
 
+marked.setOptions({ breaks: true, gfm: true })
+
+function renderBrief(raw: string): string {
+  const unescaped = raw.replace(/\\n/g, '\n')
+  return marked.parse(unescaped) as string
+}
+
 function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
   const typeName = (data.playbookType as string) || ''
   const title = (data.title as string) || 'Untitled'
   const brief = (data.brief as string) || ''
+  const html = useMemo(() => brief ? renderBrief(brief) : '', [brief])
 
   return (
     <div
@@ -20,7 +29,7 @@ function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
         border: '1px solid #d4d4d8',
         borderRadius: 6,
         padding: '8px 12px',
-        width: 200,
+        width: 220,
         fontFamily: 'system-ui, -apple-system, sans-serif',
         cursor: 'grab',
       }}
@@ -50,18 +59,20 @@ function DocNodeInner({ data }: NodeProps & { data: DocNodeData }) {
         {title}
       </div>
 
-      {brief && (
-        <div style={{
-          fontSize: 10,
-          color: '#71717a',
-          lineHeight: 1.4,
-          marginTop: 4,
-          overflow: 'hidden',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as const,
-        }}>
-          {brief}
+      {html && (
+        <div style={{ position: 'relative', marginTop: 6, maxHeight: 80, overflow: 'hidden' }}>
+          <div
+            className="doc-node-md"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 20,
+            background: 'linear-gradient(transparent, white)',
+          }} />
         </div>
       )}
 
