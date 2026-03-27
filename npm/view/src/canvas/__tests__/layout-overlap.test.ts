@@ -3,9 +3,9 @@ import { computeAutoLayout } from '../use-auto-layout'
 import type { Node, Edge } from '@xyflow/react'
 
 const NODE_DIMS = {
-  far: { width: 90, height: 30 },
-  medium: { width: 240, height: 100 },
-  close: { width: 320, height: 228 },
+  far: { width: 180, height: 50 },
+  medium: { width: 180, height: 50 },
+  close: { width: 180, height: 50 },
 }
 
 function makeNodes(count: number): Node[] {
