@@ -67,7 +67,6 @@ export function Legend({ types, activeFilter, onFilterType }: LegendProps) {
           minWidth: 130,
         }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wide">
             Legend
@@ -80,7 +79,6 @@ export function Legend({ types, activeFilter, onFilterType }: LegendProps) {
           </button>
         </div>
 
-        {/* State section */}
         <div className="mb-2">
           <div className="text-[9px] text-zinc-400 mb-1">State</div>
           <div className="space-y-0.5">
@@ -97,7 +95,6 @@ export function Legend({ types, activeFilter, onFilterType }: LegendProps) {
           </div>
         </div>
 
-        {/* Border section */}
         <div className="mb-2">
           <div className="text-[9px] text-zinc-400 mb-1">Border</div>
           <div className="space-y-0.5">
@@ -125,7 +122,6 @@ export function Legend({ types, activeFilter, onFilterType }: LegendProps) {
           </div>
         </div>
 
-        {/* Types section */}
         {types && types.length > 0 && (
           <div>
             <div className="text-[9px] text-zinc-400 mb-1">Types</div>

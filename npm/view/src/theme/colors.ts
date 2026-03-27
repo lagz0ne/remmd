@@ -1,4 +1,3 @@
-/** CSS var references for link states. Use in inline styles. */
 export const stateColor: Record<string, string> = {
   aligned: 'var(--aligned)',
   stale: 'var(--stale)',

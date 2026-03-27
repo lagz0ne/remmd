@@ -46,9 +46,7 @@ export function GapPanel({
     setPassingCollapsed(next)
     try {
       localStorage.setItem(STORAGE_KEY, String(next))
-    } catch {
-      /* noop */
-    }
+    } catch {}
   }
 
   const errorCount = validationErrors.length

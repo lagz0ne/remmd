@@ -6,7 +6,6 @@ interface PanelState {
   mode: PanelMode
   selectedNodeId: string | null
   selectedEdgeId: string | null
-  /** Number of visible columns: 1 (doc only) or 2 (doc + edge/connected) */
   columns: 1 | 2
 }
 

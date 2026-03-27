@@ -1,6 +1,5 @@
 package playbook
 
-// Playbook is a parsed playbook — types, edges, and rules.
 type Playbook struct {
 	Types map[string]*TypeDef
 	Edges map[string]*EdgeDef
@@ -10,7 +9,6 @@ type Playbook struct {
 func (p *Playbook) Type(name string) *TypeDef { return p.Types[name] }
 func (p *Playbook) Edge(name string) *EdgeDef { return p.Edges[name] }
 
-// TypeDef defines a node type in the playbook.
 type TypeDef struct {
 	Name        string
 	Description string

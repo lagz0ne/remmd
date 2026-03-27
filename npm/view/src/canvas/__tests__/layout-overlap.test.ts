@@ -2,21 +2,9 @@ import { describe, it, expect } from 'bun:test'
 import { computeAutoLayout } from '../use-auto-layout'
 import type { Node, Edge } from '@xyflow/react'
 
-/**
- * Node dimensions per zoom level (CSS pixels).
- * These must match the actual rendered sizes in PlaybookNode.tsx.
- * Includes floating indicator overhang (~20px each side).
- *
- * CRITICAL: close-view height varies by section count.
- * We test with the MAXIMUM observed height to catch worst-case overlaps.
- * Measured from real rendered nodes:
- *   2 sections: 127px, 3 sections: 163px, 3+ sections: 200px
- *   Plus floating indicators: +28px (14px top + 14px bottom)
- */
 const NODE_DIMS = {
   far: { width: 90, height: 30 },
   medium: { width: 240, height: 100 },
-  // Worst case: 200px content + 28px floats = 228px
   close: { width: 320, height: 228 },
 }
 
@@ -38,10 +26,6 @@ function makeEdges(pairs: [number, number][]): Edge[] {
   }))
 }
 
-/**
- * Check if two nodes overlap given their positions and dimensions.
- * Returns the overlap area if they do, 0 otherwise.
- */
 function overlapArea(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -56,9 +40,6 @@ function overlapArea(
   return overlapX * overlapY
 }
 
-/**
- * Find all overlapping node pairs for a given zoom level.
- */
 function findOverlaps(
   nodes: Node[],
   zoomLevel: keyof typeof NODE_DIMS,
@@ -78,27 +59,18 @@ function findOverlaps(
   return overlaps
 }
 
-// --- Test fixtures ---
-
-// Simple: 5 nodes, linear chain
 const linearNodes = makeNodes(5)
 const linearEdges = makeEdges([[0, 1], [1, 2], [2, 3], [3, 4]])
 
-// C3-like: 1 context → 2 containers → 5 components each → 3 refs cited
 const c3Nodes = makeNodes(21) // 1 + 2 + 10 + 8 refs
 const c3Edges = makeEdges([
-  // context → containers
   [0, 1], [0, 2],
-  // container 1 → components
   [1, 3], [1, 4], [1, 5], [1, 6], [1, 7],
-  // container 2 → components
   [2, 8], [2, 9], [2, 10], [2, 11], [2, 12],
-  // components cite refs
   [3, 13], [4, 13], [5, 14], [6, 14], [7, 15],
   [8, 16], [9, 17], [10, 18], [11, 19], [12, 20],
 ])
 
-// Wide: 50 nodes, sparse edges (like the real c3 import)
 const wideNodes = makeNodes(50)
 const wideEdges = makeEdges([
   [0, 1], [0, 2], [0, 3], [0, 4],
@@ -110,21 +82,14 @@ const wideEdges = makeEdges([
   [10, 24], [11, 25], [12, 26],
 ])
 
-// Realistic: 52 nodes, only 11 edges (many orphans — matches actual c3 import)
 const realisticNodes = makeNodes(52)
 const realisticEdges = makeEdges([
-  // Container contains components
   [1, 3], [1, 4],
-  // Container 2 contains components
   [5, 6], [5, 7], [5, 8],
-  // Components cite refs
   [3, 40], [8, 40],
   [6, 41], [7, 42],
-  // Cross links
   [3, 41], [6, 42],
 ])
-
-// --- Tests ---
 
 describe('layout overlap detection', () => {
   describe('linear chain (5 nodes)', () => {

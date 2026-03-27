@@ -15,8 +15,6 @@ type appKey struct{}
 
 const cliPrincipal = "cli-user"
 
-// GetApp retrieves the App from the command's context.
-// Returns nil if no App has been initialized (e.g. help, health commands).
 func GetApp(cmd *cobra.Command) *app.App {
 	v := cmd.Context().Value(appKey{})
 	if v == nil {
@@ -25,7 +23,6 @@ func GetApp(cmd *cobra.Command) *app.App {
 	return v.(*app.App)
 }
 
-// RequireApp retrieves the App from the command's context, returning an error if not initialized.
 func RequireApp(cmd *cobra.Command) (*app.App, error) {
 	if a := GetApp(cmd); a != nil {
 		return a, nil
@@ -37,7 +34,6 @@ func defaultDBPath() string {
 	return discoverDBPath()
 }
 
-// skipAppInit returns true for commands that don't need a database.
 func skipAppInit(cmd *cobra.Command) bool {
 	switch cmd.Name() {
 	case "health", "help", "completion":
@@ -51,7 +47,6 @@ func skipAppInit(cmd *cobra.Command) bool {
 	return false
 }
 
-// NewRootCmd creates the root cobra command for remmd.
 func NewRootCmd() *cobra.Command {
 	var (
 		debug      bool

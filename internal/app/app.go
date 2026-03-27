@@ -8,7 +8,6 @@ import (
 	"github.com/lagz0ne/remmd/internal/store"
 )
 
-// App is the composition root that wires all dependencies together.
 type App struct {
 	DB            *sql.DB
 	Docs          *store.DocumentRepo
@@ -22,7 +21,6 @@ type App struct {
 	Snapshots     *store.SnapshotService
 }
 
-// New creates a new App, opening the database at dbPath and running migrations.
 func New(dbPath string) (*App, error) {
 	db, err := store.OpenDB(dbPath)
 	if err != nil {
@@ -51,7 +49,6 @@ func New(dbPath string) (*App, error) {
 	}, nil
 }
 
-// Close releases the database connection.
 func (a *App) Close() error {
 	if a.DB != nil {
 		return store.CloseDB(a.DB)

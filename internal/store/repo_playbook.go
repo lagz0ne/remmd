@@ -13,18 +13,14 @@ import (
 	"github.com/lagz0ne/remmd/internal/playbook"
 )
 
-// PlaybookStore is the SQLite implementation of playbook persistence.
 type PlaybookStore struct {
 	db *sql.DB
 }
 
-// NewPlaybookStore creates a PlaybookStore backed by the given *sql.DB.
 func NewPlaybookStore(db *sql.DB) *PlaybookStore {
 	return &PlaybookStore{db: db}
 }
 
-// Import parses YAML, hashes it, compares with latest stored version.
-// If hash differs, stores a new version. Returns version number and whether it was new.
 func (s *PlaybookStore) Import(ctx context.Context, name string, yamlData []byte) (version int, isNew bool, err error) {
 	pb, err := playbook.Parse(yamlData)
 	if err != nil {
@@ -107,8 +103,6 @@ func (s *PlaybookStore) Import(ctx context.Context, name string, yamlData []byte
 	return newVer, true, nil
 }
 
-// Latest loads the latest playbook version from DB into a *playbook.Playbook.
-// Returns (nil, 0, nil) if no playbook with that name exists.
 func (s *PlaybookStore) Latest(ctx context.Context, name string) (*playbook.Playbook, int, error) {
 	var pbID string
 	var version int
@@ -284,8 +278,6 @@ func (s *PlaybookStore) Latest(ctx context.Context, name string) (*playbook.Play
 	return pb, version, edgeRows.Err()
 }
 
-// LatestVersion returns just the version number and hash, no full load.
-// Returns (0, "", nil) if no playbook with that name exists.
 func (s *PlaybookStore) LatestVersion(ctx context.Context, name string) (version int, hash string, err error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT version, hash FROM playbooks WHERE name = ? ORDER BY version DESC LIMIT 1`, name)

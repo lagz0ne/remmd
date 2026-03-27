@@ -15,7 +15,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// registerHandlers wires NATS request-reply subjects to real app repos.
 func registerHandlers(nc *nats.Conn, application *app.App) {
 	reply := func(msg *nats.Msg, data any) {
 		b, _ := json.Marshal(data)
@@ -296,8 +295,6 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 	})
 }
 
-// statePriority maps link state strings to severity order.
-// Higher = worse. Archived is absent so it's naturally ignored (priority 0).
 var statePriority = map[string]int{
 	string(core.LinkAligned): 1,
 	string(core.LinkPending): 2,
@@ -305,8 +302,6 @@ var statePriority = map[string]int{
 	string(core.LinkBroken):  4,
 }
 
-// worstState returns the highest-priority state from a list of state strings.
-// Archived links (priority 0) are naturally ignored. Returns "" if empty.
 func worstState(states []string) string {
 	best := 0
 	result := ""
@@ -319,8 +314,6 @@ func worstState(states []string) string {
 	return result
 }
 
-// deriveSectionLinkState queries all links containing the given section and
-// returns the "worst" link state. Returns empty string if the section has no links.
 func deriveSectionLinkState(ctx context.Context, links *store.LinkRepo, sectionID string) string {
 	ls, err := links.LinksContainingSection(ctx, sectionID)
 	if err != nil || len(ls) == 0 {
@@ -329,7 +322,6 @@ func deriveSectionLinkState(ctx context.Context, links *store.LinkRepo, sectionI
 	return deriveLinkState(ls)
 }
 
-// deriveLinkState returns the worst state across all provided links.
 func deriveLinkState(links []*core.Link) string {
 	states := make([]string, len(links))
 	for i, l := range links {
@@ -338,7 +330,6 @@ func deriveLinkState(links []*core.Link) string {
 	return worstState(states)
 }
 
-// deriveLinkInfoState returns the worst state across LinkInfo entries.
 func deriveLinkInfoState(links []*core.LinkInfo) string {
 	states := make([]string, len(links))
 	for i, li := range links {
@@ -347,7 +338,6 @@ func deriveLinkInfoState(links []*core.LinkInfo) string {
 	return worstState(states)
 }
 
-// subjectPart splits a NATS subject on "." and returns the part at the given index.
 func subjectPart(subject string, index int) (string, error) {
 	parts := strings.Split(subject, ".")
 	if index >= len(parts) {
@@ -356,10 +346,8 @@ func subjectPart(subject string, index int) (string, error) {
 	return parts[index], nil
 }
 
-// sectionDocResolver resolves a section ID to its parent document ID.
 type sectionDocResolver func(ctx context.Context, sectionID string) (string, error)
 
-// graphResponse is the JSON shape returned by remmd.q.graph.
 type graphResponse struct {
 	Nodes []graphNode `json:"nodes"`
 	Edges []graphEdge `json:"edges"`
@@ -385,9 +373,6 @@ type graphEdge struct {
 	RightSectionIDs  []string `json:"right_section_ids"`
 }
 
-// buildGraphResponse constructs the graph payload from documents and links.
-// For each link, it resolves the first left section to a source doc and the
-// first right section to a target doc. Links with unresolvable sections are skipped.
 type sectionLister func(ctx context.Context, docID string) ([]*core.Section, error)
 
 func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*core.Link, resolve sectionDocResolver, listSections sectionLister) graphResponse {
@@ -437,15 +422,12 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 	return graphResponse{Nodes: nodes, Edges: edges}
 }
 
-// resolveDocID finds the document ID for the first section in the given list.
 func resolveDocID(ctx context.Context, sectionIDs []string, resolve sectionDocResolver) (string, error) {
 	if len(sectionIDs) == 0 {
 		return "", errBadSubject
 	}
 	return resolve(ctx, sectionIDs[0])
 }
-
-// --- Playbook response types ---
 
 type playbookResponse struct {
 	Types []playbookTypeResp   `json:"types"`
@@ -500,8 +482,6 @@ type validationDiag struct {
 	Message  string `json:"message"`
 }
 
-// buildPlaybookResponse converts a parsed Playbook into the JSON response shape.
-// Maps are iterated in sorted key order for deterministic JSON output.
 func buildPlaybookResponse(pb *playbook.Playbook) playbookResponse {
 	var resp playbookResponse
 
@@ -596,7 +576,6 @@ func buildPlaybookResponse(pb *playbook.Playbook) playbookResponse {
 	return resp
 }
 
-// buildValidationResponse converts playbook diagnostics into the JSON response shape.
 func buildValidationResponse(diags []playbook.Diagnostic) validationResponse {
 	out := make([]validationDiag, 0, len(diags))
 	for _, d := range diags {

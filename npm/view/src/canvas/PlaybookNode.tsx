@@ -12,8 +12,6 @@ import { useSections } from '../hooks'
 import { stateColor, validationBg, validationBorder, validationText } from '../theme/colors'
 import type { DocNodeData } from './use-graph-data'
 
-/* ── Derived data extracted once from DocNodeData ── */
-
 interface NodeMetrics {
   errors: { rule: string; message: string }[]
   passing: number
@@ -51,8 +49,6 @@ function deriveMetrics(data: DocNodeData): NodeMetrics {
     borderColor: data.worstState ? stateColor[data.worstState] || '#d4d4d8' : '#d4d4d8',
   }
 }
-
-/* ── Shared floating indicators ── */
 
 function ValidationIndicator({ m }: { m: NodeMetrics }) {
   if (m.total <= 0) return null
@@ -110,8 +106,6 @@ function PortSummary({ m }: { m: NodeMetrics }) {
   )
 }
 
-/* ── Shared header: type label + owner tag + title + brief ── */
-
 function NodeHeader({ data, truncateTitle }: { data: DocNodeData; truncateTitle?: boolean }) {
   return (
     <>
@@ -135,8 +129,6 @@ function NodeHeader({ data, truncateTitle }: { data: DocNodeData; truncateTitle?
   )
 }
 
-/* ── Entry point ── */
-
 function PlaybookNodeInner({ data, id, selected }: NodeProps & { data: DocNodeData }) {
   const zoom = useZoomLevel()
 
@@ -144,8 +136,6 @@ function PlaybookNodeInner({ data, id, selected }: NodeProps & { data: DocNodeDa
   if (zoom === 'medium') return <MediumView data={data} selected={selected} />
   return <CloseView data={data} docId={id} selected={selected} />
 }
-
-/* ── Far View ── zoom < 0.35 ── */
 
 function FarView({ data, selected }: { data: DocNodeData; selected?: boolean }) {
   const hasErrors = (data.validationErrors as { rule: string; message: string }[])?.length > 0
@@ -172,8 +162,6 @@ function FarView({ data, selected }: { data: DocNodeData; selected?: boolean }) 
   )
 }
 
-/* ── Medium View ── 0.35-0.85 ── */
-
 function MediumView({ data, selected }: { data: DocNodeData; selected?: boolean }) {
   const m = deriveMetrics(data)
 
@@ -197,8 +185,6 @@ function MediumView({ data, selected }: { data: DocNodeData; selected?: boolean 
     </div>
   )
 }
-
-/* ── Close View ── zoom > 0.85 ── */
 
 function CloseView({
   data,
@@ -311,8 +297,6 @@ function CloseView({
     </div>
   )
 }
-
-/* ── Port Pill helper ── */
 
 function PortPill({
   icon,
