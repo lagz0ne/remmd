@@ -31,7 +31,7 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
       {header}
       <div style={{
-        padding: '12px 18px',
+        padding: '8px 14px',
         borderBottom: '1px solid #f4f4f5',
         display: 'flex',
         justifyContent: 'space-between',
@@ -39,21 +39,21 @@ export function NodeColumn({ docId, title, typeName, onClose, header, footer }: 
       }}>
         <div>
           {typeName && <div style={{ fontSize: 9, color: '#a1a1aa', letterSpacing: '0.03em' }}>{typeName}</div>}
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#18181b', marginTop: 2 }}>{title}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#18181b', marginTop: 1 }}>{title}</div>
         </div>
         {onClose && (
-          <span onClick={onClose} style={{ fontSize: 12, color: '#a1a1aa', cursor: 'pointer', padding: '2px 4px' }}>✕</span>
+          <span onClick={onClose} style={{ fontSize: 11, color: '#a1a1aa', cursor: 'pointer', padding: '2px 4px' }}>✕</span>
         )}
       </div>
       <div
         className="doc-node-md"
         style={{
           flex: 1,
-          padding: '14px 18px',
+          padding: '10px 14px',
           overflowY: 'auto',
-          fontSize: 12,
+          fontSize: 11,
           color: '#52525b',
-          lineHeight: 1.7,
+          lineHeight: 1.6,
         }}
         dangerouslySetInnerHTML={{ __html: html }}
       />

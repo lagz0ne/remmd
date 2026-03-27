@@ -32,7 +32,7 @@ export function EdgeFooter({ edges, activeEdgeId, onEdgeClick }: EdgeFooterProps
       <div
         onClick={() => setCollapsed(!collapsed)}
         style={{
-          padding: '8px 18px',
+          padding: '6px 14px',
           fontSize: 10,
           color: '#71717a',
           fontWeight: 500,
@@ -45,7 +45,7 @@ export function EdgeFooter({ edges, activeEdgeId, onEdgeClick }: EdgeFooterProps
         <span style={{ fontSize: 9, color: '#a1a1aa' }}>{collapsed ? '\u25b8' : '\u25be'}</span>
       </div>
       {!collapsed && (
-        <div style={{ padding: '0 18px 10px' }}>
+        <div style={{ padding: '0 14px 8px' }}>
           {edges.map(edge => (
             <div
               key={edge.id}
