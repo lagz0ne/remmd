@@ -68,6 +68,8 @@ function Canvas() {
         <MiniMap
           position="bottom-right"
           style={{
+            width: 140,
+            height: 90,
             border: '1px solid #e4e4e7',
             borderRadius: 6,
             background: '#fafafa',

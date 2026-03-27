@@ -1,10 +1,10 @@
 import { Graph, layout } from '@dagrejs/dagre'
 import type { Node, Edge } from '@xyflow/react'
 
-export const LAYOUT_NODE_WIDTH = 180
-export const LAYOUT_NODE_HEIGHT = 50
-const RANK_SEP = 60
-const NODE_SEP = 30
+export const LAYOUT_NODE_WIDTH = 230
+export const LAYOUT_NODE_HEIGHT = 120
+const RANK_SEP = 40
+const NODE_SEP = 20
 const CLUSTER_GAP = 80
 
 export function computeAutoLayout(nodes: Node[], edges: Edge[]): Node[] {
