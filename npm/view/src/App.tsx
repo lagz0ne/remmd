@@ -19,6 +19,7 @@ import { useGraphData } from './canvas/use-graph-data'
 import { computeAutoLayout } from './canvas/use-auto-layout'
 import { DocNode } from './canvas/DocNode'
 import { NodePanel, type StackEntry } from './panel/NodePanel'
+import type { EdgeItem } from './panel/EdgeFooter'
 
 const queryClient = new QueryClient()
 const nodeTypes = { document: DocNode }
@@ -40,6 +41,11 @@ function Canvas() {
   }
 
   const onPaneClick = () => setPanelStack([])
+
+  const onEdgeFollow = (edge: EdgeItem) => {
+    console.log('follow edge:', edge)
+    // Task 3 will implement actual 2-column navigation
+  }
 
   if (!initialized && graphNodes.length > 0) {
     setNodes(computeAutoLayout(graphNodes, graphEdges))
@@ -92,7 +98,13 @@ function Canvas() {
           nodeColor="#d4d4d8"
         />
       </ReactFlow>
-      <NodePanel stack={panelStack} onClose={() => setPanelStack([])} />
+      <NodePanel
+        stack={panelStack}
+        graphEdges={edges}
+        graphNodes={nodes}
+        onClose={() => setPanelStack([])}
+        onEdgeFollow={onEdgeFollow}
+      />
       <div className="fixed bottom-1 left-1 text-[8px] text-zinc-300 font-mono pointer-events-none select-none z-50">
         {__BUILD_VERSION__}
       </div>

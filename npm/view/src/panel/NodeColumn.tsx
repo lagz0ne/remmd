@@ -14,9 +14,10 @@ interface NodeColumnProps {
   typeName: string
   onClose?: () => void
   header?: React.ReactNode
+  footer?: React.ReactNode
 }
 
-export function NodeColumn({ docId, title, typeName, onClose, header }: NodeColumnProps) {
+export function NodeColumn({ docId, title, typeName, onClose, header, footer }: NodeColumnProps) {
   const { data } = useSections(docId)
   const sections = data?.sections ?? []
 
@@ -56,6 +57,7 @@ export function NodeColumn({ docId, title, typeName, onClose, header }: NodeColu
         }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {footer}
     </div>
   )
 }
