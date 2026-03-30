@@ -1,5 +1,7 @@
 package playbook
 
+import "strings"
+
 type Node struct {
 	Type string
 	ID   string
@@ -54,6 +56,10 @@ func runWithChecker(pb *Playbook, nodes []Node, checker *Checker) []Diagnostic {
 }
 
 func evalRule(checker *Checker, rule *RuleDef, node Node) *Diagnostic {
+	// Skip action-time guards (they reference principal/proposed which aren't available in static validation)
+	if strings.Contains(rule.Expr, "principal.") || strings.Contains(rule.Expr, "proposed.") {
+		return nil
+	}
 	pass, err := checker.Eval(rule.Expr, node.Data)
 	if err != nil {
 		return &Diagnostic{

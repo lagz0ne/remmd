@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lagz0ne/remmd/internal/core"
 	"github.com/lagz0ne/remmd/internal/playbook"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ func newPlaybookCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPlaybookCheckCmd())
 	cmd.AddCommand(newPlaybookImportCmd())
+	cmd.AddCommand(newPlaybookValidateCmd())
 	return cmd
 }
 
@@ -80,6 +82,149 @@ func newPlaybookCheckCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newPlaybookValidateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "validate",
+		Short: "Run playbook rules against all documents",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := RequireApp(cmd)
+			if err != nil {
+				return err
+			}
+			ctx := cmd.Context()
+
+			// Try common playbook names
+			var pb *playbook.Playbook
+			for _, name := range []string{"default", "c3", "sft"} {
+				pb, _, err = a.Playbooks.Latest(ctx, name)
+				if err != nil {
+					return fmt.Errorf("load playbook: %w", err)
+				}
+				if pb != nil {
+					break
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("load playbook: %w", err)
+			}
+			if pb == nil {
+				return fmt.Errorf("no playbook imported — run 'remmd playbook import' first")
+			}
+
+			docs, err := a.Docs.ListDocuments(ctx)
+			if err != nil {
+				return fmt.Errorf("list documents: %w", err)
+			}
+
+			var nodes []playbook.Node
+			for _, d := range docs {
+				data := map[string]any{
+					"_node_id":         d.ID,
+					"title":            d.Title,
+					"status":           string(d.Status),
+					"source":           d.Source,
+					"owner":            "",
+					"origin":           "",
+					"golden_example":   "",
+					"responsibilities": "",
+					"affects":          []any{},
+					"sources":          []any{},
+				}
+				// Enrich with section content as fields
+				if sections, err := a.Docs.ListSections(ctx, d.ID); err == nil {
+					for _, s := range sections {
+						key := strings.ToLower(strings.ReplaceAll(s.Title, " ", "_"))
+						if key != "" && s.Content != "" {
+							data[key] = s.Content
+						}
+					}
+				}
+				nodes = append(nodes, playbook.Node{
+					Type: d.DocType,
+					ID:   d.ID,
+					Data: data,
+				})
+			}
+
+			relations, err := a.Relations.ListAllRelations(ctx)
+			if err != nil {
+				return fmt.Errorf("list relations: %w", err)
+			}
+
+			gc := newRelationGraphForValidation(relations, nodes)
+			diags := playbook.RunWithGraph(pb, nodes, gc)
+
+			if len(diags) == 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "PASS: %d documents, 0 issues\n", len(docs))
+				return nil
+			}
+
+			errors, warnings := 0, 0
+			for _, d := range diags {
+				severity := strings.ToUpper(d.Severity)
+				if d.Severity == "error" {
+					errors++
+				} else {
+					warnings++
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%s [%s] %s: %s\n", severity, d.NodeType, d.NodeID[:8], d.Message)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "\n%d documents, %d errors, %d warnings\n", len(docs), errors, warnings)
+			if errors > 0 {
+				return fmt.Errorf("%d validation error(s)", errors)
+			}
+			return nil
+		},
+	}
+}
+
+// relationGraphForValidation adapts relations for CLI validation.
+type relationGraphForValidation struct {
+	outEdges map[string][]struct{ id, to, relType string }
+	inEdges  map[string][]struct{ id, from, relType string }
+	nodeMap  map[string]bool
+}
+
+func newRelationGraphForValidation(relations []core.Relation, nodes []playbook.Node) *relationGraphForValidation {
+	g := &relationGraphForValidation{
+		outEdges: make(map[string][]struct{ id, to, relType string }),
+		inEdges:  make(map[string][]struct{ id, from, relType string }),
+		nodeMap:  make(map[string]bool),
+	}
+	for _, r := range relations {
+		g.outEdges[r.FromDocID] = append(g.outEdges[r.FromDocID], struct{ id, to, relType string }{r.ID, r.ToDocID, r.RelationType})
+		g.inEdges[r.ToDocID] = append(g.inEdges[r.ToDocID], struct{ id, from, relType string }{r.ID, r.FromDocID, r.RelationType})
+	}
+	for _, n := range nodes {
+		g.nodeMap[n.Type+":"+n.ID] = true
+	}
+	return g
+}
+
+func (g *relationGraphForValidation) EdgesOut(nodeID string, edgeType string) []map[string]any {
+	var result []map[string]any
+	for _, e := range g.outEdges[nodeID] {
+		if e.relType == edgeType {
+			result = append(result, map[string]any{"id": e.id, "source_id": nodeID, "target_id": e.to, "type": e.relType})
+		}
+	}
+	return result
+}
+
+func (g *relationGraphForValidation) EdgesIn(nodeID string, edgeType string) []map[string]any {
+	var result []map[string]any
+	for _, e := range g.inEdges[nodeID] {
+		if e.relType == edgeType {
+			result = append(result, map[string]any{"id": e.id, "source_id": e.from, "target_id": nodeID, "type": e.relType})
+		}
+	}
+	return result
+}
+
+func (g *relationGraphForValidation) NodeExists(nodeType string, nodeID string) bool {
+	return g.nodeMap[nodeType+":"+nodeID]
 }
 
 func newPlaybookImportCmd() *cobra.Command {
