@@ -95,7 +95,6 @@ func newPlaybookValidateCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 
-			// Try common playbook names
 			var pb *playbook.Playbook
 			for _, name := range []string{"default", "c3", "sft"} {
 				pb, _, err = a.Playbooks.Latest(ctx, name)
@@ -105,9 +104,6 @@ func newPlaybookValidateCmd() *cobra.Command {
 				if pb != nil {
 					break
 				}
-			}
-			if err != nil {
-				return fmt.Errorf("load playbook: %w", err)
 			}
 			if pb == nil {
 				return fmt.Errorf("no playbook imported — run 'remmd playbook import' first")
