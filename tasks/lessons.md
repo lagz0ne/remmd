@@ -78,7 +78,6 @@ Playbook rules like `size(edges_out("contains")) >= 1` need a GraphContext adapt
 - ~~Canvas zoom levels~~ ✅ Done — far (title only), medium (brief), close (brief + counts)
 - ~~Code-map coverage~~ ✅ Done — 0%→83% (165/198 files)
 - ~~Playbook validate CLI~~ ✅ Done — graph-aware, section-enriched, action guards skipped
+- ~~Fix 13 real validation errors~~ ✅ Done — 0 errors, 0 warnings
 - Build C3 adapter (subprocess, JSON lines, fetch/watch/stop ops)
-- Fix 13 real validation errors (4 orphan refs, 9 missing rule origins)
 - Canvas close-zoom: inline section editing
-- Visual verification of canvas with agent-browser
