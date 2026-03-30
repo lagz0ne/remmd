@@ -63,13 +63,22 @@ Playbooks define artifact types + ownership (static). Workflows are remmd links 
 ### Relations need ListAllRelations for the graph
 The graph handler needs ALL relations to render structural edges. `ListRelationsFrom`/`ListRelationsTo` only query one doc at a time. Added `ListAllRelations` to the interface + store.
 
+### CEL validation needs graph context + section enrichment
+Playbook rules like `size(edges_out("contains")) >= 1` need a GraphContext adapter. Node Data maps must include section content as fields (lowercase title → key). Action-time rules (referencing `principal`/`proposed`) must be skipped during static validation.
+
+### Playbook import names matter
+`playbook import` derives name from filename (`c3.playbook.yaml` → `c3`). The validate command must search by known names, not hardcode "default".
+
 ## What to do next session
 - ~~Table headers should use actual column names~~ ✅ Done — Kind field
 - ~~Brief on canvas nodes should be more meaningful~~ ✅ Done — Goal section
 - ~~Edge labels on canvas~~ ✅ Done — BundledEdge registered with type labels
 - ~~Position persistence~~ ✅ Done — load/save/dagre-only-for-new
-- ~~Re-import C3 docs with full content~~ ✅ Done — 7 rules enriched with full C3 content
+- ~~Re-import C3 docs with full content~~ ✅ Done — all 53 entities with 767 sections
 - ~~Canvas zoom levels~~ ✅ Done — far (title only), medium (brief), close (brief + counts)
-- Code-map coverage in C3 — scaffolded, filling in progress
+- ~~Code-map coverage~~ ✅ Done — 0%→83% (165/198 files)
+- ~~Playbook validate CLI~~ ✅ Done — graph-aware, section-enriched, action guards skipped
 - Build C3 adapter (subprocess, JSON lines, fetch/watch/stop ops)
+- Fix 13 real validation errors (4 orphan refs, 9 missing rule origins)
+- Canvas close-zoom: inline section editing
 - Visual verification of canvas with agent-browser
