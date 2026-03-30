@@ -14,23 +14,32 @@ type Diagnostic struct {
 	Message  string
 }
 
-// Run evaluates all playbook rules against nodes.
-// Global rules apply to all nodes; type-scoped rules only to matching types.
+// Run evaluates all playbook rules against nodes without graph context.
 func Run(pb *Playbook, nodes []Node) []Diagnostic {
 	checker, err := NewChecker()
 	if err != nil {
 		return []Diagnostic{{Rule: "_internal", Severity: "error", Message: err.Error()}}
 	}
+	return runWithChecker(pb, nodes, checker)
+}
 
+// RunWithGraph evaluates rules with graph-aware CEL functions (edges_in, edges_out, etc.).
+func RunWithGraph(pb *Playbook, nodes []Node, gc GraphContext) []Diagnostic {
+	checker, err := NewCheckerWithGraph(gc)
+	if err != nil {
+		return []Diagnostic{{Rule: "_internal", Severity: "error", Message: err.Error()}}
+	}
+	return runWithChecker(pb, nodes, checker)
+}
+
+func runWithChecker(pb *Playbook, nodes []Node, checker *Checker) []Diagnostic {
 	var diags []Diagnostic
-
 	for _, node := range nodes {
 		for _, rule := range pb.Rules {
 			if d := evalRule(checker, rule, node); d != nil {
 				diags = append(diags, *d)
 			}
 		}
-
 		td := pb.Type(node.Type)
 		if td == nil {
 			continue
@@ -41,7 +50,6 @@ func Run(pb *Playbook, nodes []Node) []Diagnostic {
 			}
 		}
 	}
-
 	return diags
 }
 

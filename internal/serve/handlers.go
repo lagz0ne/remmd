@@ -233,14 +233,23 @@ func registerHandlers(nc *nats.Conn, application *app.App) {
 				Type: d.DocType,
 				ID:   d.ID,
 				Data: map[string]any{
-					"title":  d.Title,
-					"status": string(d.Status),
-					"source": d.Source,
+					"_node_id": d.ID,
+					"title":    d.Title,
+					"status":   string(d.Status),
+					"source":   d.Source,
 				},
 			})
 		}
 
-		diags := playbook.Run(pb, nodes)
+		relations, err := application.Relations.ListAllRelations(ctx)
+		if err != nil {
+			slog.Error("handler: validate list relations", "error", err)
+			replyErr(msg, err)
+			return
+		}
+
+		gc := newRelationGraph(relations, nodes)
+		diags := playbook.RunWithGraph(pb, nodes, gc)
 		reply(msg, buildValidationResponse(diags))
 	})
 
@@ -434,6 +443,64 @@ func buildGraphResponse(ctx context.Context, docs []*core.Document, links []*cor
 	}
 
 	return graphResponse{Nodes: nodes, Edges: edges}
+}
+
+// relationGraph adapts remmd relations to playbook.GraphContext for CEL evaluation.
+type relationGraph struct {
+	outEdges map[string][]core.Relation // from_doc_id -> relations
+	inEdges  map[string][]core.Relation // to_doc_id -> relations
+	nodeMap  map[string]playbook.Node   // type:id -> node
+}
+
+func newRelationGraph(relations []core.Relation, nodes []playbook.Node) *relationGraph {
+	g := &relationGraph{
+		outEdges: make(map[string][]core.Relation),
+		inEdges:  make(map[string][]core.Relation),
+		nodeMap:  make(map[string]playbook.Node),
+	}
+	for _, r := range relations {
+		g.outEdges[r.FromDocID] = append(g.outEdges[r.FromDocID], r)
+		g.inEdges[r.ToDocID] = append(g.inEdges[r.ToDocID], r)
+	}
+	for _, n := range nodes {
+		g.nodeMap[n.Type+":"+n.ID] = n
+	}
+	return g
+}
+
+func (g *relationGraph) EdgesOut(nodeID string, edgeType string) []map[string]any {
+	var result []map[string]any
+	for _, r := range g.outEdges[nodeID] {
+		if r.RelationType == edgeType {
+			result = append(result, map[string]any{
+				"id":        r.ID,
+				"source_id": r.FromDocID,
+				"target_id": r.ToDocID,
+				"type":      r.RelationType,
+			})
+		}
+	}
+	return result
+}
+
+func (g *relationGraph) EdgesIn(nodeID string, edgeType string) []map[string]any {
+	var result []map[string]any
+	for _, r := range g.inEdges[nodeID] {
+		if r.RelationType == edgeType {
+			result = append(result, map[string]any{
+				"id":        r.ID,
+				"source_id": r.FromDocID,
+				"target_id": r.ToDocID,
+				"type":      r.RelationType,
+			})
+		}
+	}
+	return result
+}
+
+func (g *relationGraph) NodeExists(nodeType string, nodeID string) bool {
+	_, ok := g.nodeMap[nodeType+":"+nodeID]
+	return ok
 }
 
 func findGoalBrief(sections []*core.Section) string {

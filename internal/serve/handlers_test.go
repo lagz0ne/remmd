@@ -363,6 +363,45 @@ func TestBuildGraphResponse_BriefUsesGoalSection(t *testing.T) {
 	}
 }
 
+func TestRelationGraphContext(t *testing.T) {
+	t.Parallel()
+	relations := []core.Relation{
+		{ID: "r1", FromDocID: "ctx", ToDocID: "ctr", RelationType: "contains"},
+		{ID: "r2", FromDocID: "ctr", ToDocID: "comp", RelationType: "contains"},
+		{ID: "r3", FromDocID: "comp", ToDocID: "ref1", RelationType: "cites"},
+	}
+	nodes := []playbook.Node{
+		{Type: "context", ID: "ctx", Data: map[string]any{"title": "remmd"}},
+		{Type: "container", ID: "ctr", Data: map[string]any{"title": "cli"}},
+		{Type: "component", ID: "comp", Data: map[string]any{"title": "cmd-root"}},
+		{Type: "ref", ID: "ref1", Data: map[string]any{"title": "logging"}},
+	}
+	gc := newRelationGraph(relations, nodes)
+
+	// edges_out from ctx should have 1 "contains" edge
+	out := gc.EdgesOut("ctx", "contains")
+	if len(out) != 1 {
+		t.Fatalf("EdgesOut(ctx, contains) = %d, want 1", len(out))
+	}
+	if out[0]["target_id"] != "ctr" {
+		t.Errorf("EdgesOut target = %v, want ctr", out[0]["target_id"])
+	}
+
+	// edges_in to ref1 should have 1 "cites" edge
+	in := gc.EdgesIn("ref1", "cites")
+	if len(in) != 1 {
+		t.Fatalf("EdgesIn(ref1, cites) = %d, want 1", len(in))
+	}
+
+	// NodeExists
+	if !gc.NodeExists("context", "ctx") {
+		t.Error("NodeExists(context, ctx) should be true")
+	}
+	if gc.NodeExists("context", "nonexistent") {
+		t.Error("NodeExists(context, nonexistent) should be false")
+	}
+}
+
 func TestBuildValidationResponse(t *testing.T) {
 	t.Parallel()
 
